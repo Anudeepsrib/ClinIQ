@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Healthcare RAG</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="background-glob"></div>
+    
+    <main class="container">
+        <header>
+            <div class="logo">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="brand-icon">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h1>MediPolicy <span class="badge">AI</span></h1>
+            </div>
+            <p class="subtitle">Secure Policy & Guideline Assistant</p>
+        </header>
+
+        <div class="grid-layout">
+            <!-- Knowledge Base Section -->
+            <section class="card upload-card">
+                <div class="card-header">
+                    <h2>Knowledge Base</h2>
+                    <span class="status-indicator" id="dbStatus">Ready</span>
+                </div>
+                <div class="upload-zone" id="dropZone">
+                    <div class="upload-icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <p>Drag & drop policies (PDF, DOCX) or coverage tables (XLSX)</p>
+                    <input type="file" id="fileInput" hidden>
+                    <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">Select File</button>
+                </div>
+                <div id="uploadList" class="file-list"></div>
+            </section>
+
+            <!-- Chat Interface -->
+            <section class="card chat-card">
+                <div class="card-header">
+                    <h2>Policy Assistant</h2>
+                    <button class="btn-ghost" onclick="clearChat()">Clear</button>
+                </div>
+                <div class="chat-history" id="chatHistory">
+                    <div class="message system">
+                        <div class="avatar">AI</div>
+                        <div class="content">
+                            Hello! I can answer questions based strictly on your uploaded policy documents. I will provide citations for every answer.
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <textarea id="questionInput" placeholder="Ask about coverage, prior auth, or coding..." rows="1" onkeydown="handleEnter(event)"></textarea>
+                        <button class="btn-primary" onclick="sendQuery()" id="sendBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <div id="notification" class="notification hidden">Notification</div>
+    <script src="/static/js/script.js"></script>
+</body>
+</html>

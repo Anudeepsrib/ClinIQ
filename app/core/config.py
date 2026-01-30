@@ -1,0 +1,18 @@
+import os
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "Healthcare RAG MVP"
+    API_V1_STR: str = "/api/v1"
+    
+    OPENAI_API_KEY: str
+    CHROMA_PERSIST_DIRECTORY: str = "./data/vector_db"
+    DOCS_DIRECTORY: str = "./data/docs"
+    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    LLM_MODEL: str = "gpt-4-turbo-preview"
+
+    class Config:
+        case_sensitive = True
+        env_file = ".env"
+
+settings = Settings()
