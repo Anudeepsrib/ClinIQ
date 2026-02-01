@@ -1,0 +1,23 @@
+# General
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment
+.env
+venv/
+env/
+
+# Docker
+.dockerignore
+
+# IDEs
+.vscode/
+.idea/
+
+# Project Specific
+/.agent/
+data/vector_db/
+data/docs/
+data/vault.db
+data/test_docs/
