@@ -14,5 +14,6 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
     """
     print("---RETRIEVE---")
     question = state["question"]
-    documents = vector_store.search(question)
+    # Use hybrid search for better recall
+    documents = vector_store.hybrid_search(question)
     return {"documents": documents, "question": question}

@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     LLM_MODEL: str = "gpt-4-turbo-preview"
 
+    # Observability
+    LANGCHAIN_TRACING_V2: str = "true"
+    LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
+    LANGCHAIN_API_KEY: str = "ls__..."  # Placeholder
+    LANGCHAIN_PROJECT: str = "healthcare-rag-mvp"
+
     class Config:
         case_sensitive = True
         env_file = ".env"
