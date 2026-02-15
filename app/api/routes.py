@@ -1,27 +1,160 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Header
-from typing import List
-from app.schemas.models import IngestResponse, QueryRequest, QueryResponse
+"""
+API routes — Auth, ingestion, and query endpoints with RBAC enforcement.
+"""
+
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
+from typing import List, Optional
+from app.schemas.models import (
+    IngestResponse, QueryRequest, QueryResponse,
+    LoginRequest, TokenResponse, UserCreate, UserOut,
+)
 from app.ingestion.loader_factory import LoaderFactory
 from app.retrieval.vector_store import vector_store
 from app.retrieval.graph import app_graph
 from app.core.limiter import limiter
+from app.core.config import settings
+from app.security.auth import user_db, create_access_token, ROLE_HIERARCHY
+from app.security.rbac import get_current_user, require_role, get_user_departments
 
 router = APIRouter()
 loader_factory = LoaderFactory()
 
+
+# =========================================================================
+# Auth endpoints
+# =========================================================================
+
+@router.post("/auth/login", response_model=TokenResponse)
+async def login(request: Request, body: LoginRequest):
+    """Authenticate and receive a JWT token."""
+    user = user_db.authenticate(body.username, body.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token(data={
+        "sub": user["username"],
+        "role": user["role"],
+        "departments": user["departments"],
+    })
+
+    return TokenResponse(
+        access_token=token,
+        user=UserOut(**{k: v for k, v in user.items() if k != "hashed_pw"}),
+    )
+
+
+@router.post("/auth/register", response_model=UserOut)
+async def register_user(
+    request: Request,
+    body: UserCreate,
+    admin: dict = Depends(require_role("admin")),
+):
+    """Admin-only: create a new user."""
+    try:
+        user = user_db.create_user(
+            username=body.username,
+            password=body.password,
+            role=body.role,
+            departments=body.departments,
+            full_name=body.full_name,
+        )
+        return UserOut(**{k: v for k, v in user.items() if k != "hashed_pw"})
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/auth/me", response_model=UserOut)
+async def get_me(user: dict = Depends(get_current_user)):
+    """Return the current authenticated user's profile."""
+    return UserOut(**{k: v for k, v in user.items() if k != "hashed_pw"})
+
+
+@router.get("/admin/users", response_model=List[UserOut])
+async def list_users(admin: dict = Depends(require_role("admin"))):
+    """Admin-only: list all users."""
+    return [
+        UserOut(**{k: v for k, v in u.items() if k != "hashed_pw"})
+        for u in user_db.list_users()
+    ]
+
+
+@router.delete("/admin/users/{username}")
+async def delete_user(username: str, admin: dict = Depends(require_role("admin"))):
+    """Admin-only: delete a user (cannot delete admins)."""
+    if user_db.delete_user(username):
+        return {"status": "deleted", "username": username}
+    raise HTTPException(status_code=404, detail="User not found or is an admin")
+
+
+# =========================================================================
+# Department info
+# =========================================================================
+
+@router.get("/departments")
+async def get_departments(user: dict = Depends(get_current_user)):
+    """Return departments the current user can access."""
+    depts = get_user_departments(user)
+    return {
+        "departments": depts,
+        "all_departments": settings.departments_list,
+        "role": user["role"],
+    }
+
+
+@router.get("/departments/stats")
+async def get_department_stats(admin: dict = Depends(require_role("admin"))):
+    """Admin-only: document counts per department."""
+    return vector_store.get_collection_stats()
+
+
+# =========================================================================
+# Ingestion
+# =========================================================================
+
 @router.post("/ingest", response_model=IngestResponse)
-@limiter.limit("5/minute")
-async def ingest_document(request: Request, file: UploadFile = File(...)):
+@limiter.limit("10/minute")
+async def ingest_document(
+    request: Request,
+    file: UploadFile = File(...),
+    department: str = Form("general"),
+    user: dict = Depends(get_current_user),
+):
+    """
+    Upload a document to a specific department's knowledge base.
+    Requires the user to have access to the target department.
+    """
+    department = department.lower()
+
+    # Validate department access
+    allowed = get_user_departments(user)
+    if department not in allowed:
+        raise HTTPException(
+            status_code=403,
+            detail=f"You do not have access to the '{department}' department",
+        )
+
+    if department not in settings.departments_list:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid department '{department}'. Valid: {settings.departments_list}",
+        )
+
     try:
         content = await file.read()
         chunks = await loader_factory.process_file(content, file.filename, file.content_type)
-        
-        vector_store.add_chunks(chunks)
-        
+
+        # Determine modality from the first chunk
+        modality = chunks[0].modality if chunks else "text"
+
+        # Route to department collection
+        vector_store.add_chunks(chunks, department=department)
+
         return IngestResponse(
-            file_id=file.filename, # Simple ID for MVP
+            file_id=file.filename,
             filename=file.filename,
-            chunks_count=len(chunks)
+            department=department,
+            modality=modality,
+            chunks_count=len(chunks),
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -29,33 +162,65 @@ async def ingest_document(request: Request, file: UploadFile = File(...)):
         print(f"Error ingesting file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+# =========================================================================
+# Query
+# =========================================================================
+
 @router.post("/query", response_model=QueryResponse)
-@limiter.limit("5/minute")
-async def query_documents(request: Request, request_body: QueryRequest, x_role: str = Header("public", alias="X-Role")):
+@limiter.limit("10/minute")
+async def query_documents(
+    request: Request,
+    request_body: QueryRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Query the knowledge base. Searches only departments the user has access to.
+    Optionally filter to specific departments via `request_body.departments`.
+    """
     try:
-        # Verify role (though we just read it for MVP behavior toggling)
-        # In a real app, we'd check JWT permissions here.
-        role = x_role.lower()
-        
-        inputs = {"question": request_body.question}
+        allowed = get_user_departments(user)
+
+        # If user specified departments, intersect with allowed
+        if request_body.departments:
+            search_depts = [d for d in request_body.departments if d in allowed]
+            if not search_depts:
+                raise HTTPException(
+                    status_code=403,
+                    detail="You don't have access to any of the requested departments",
+                )
+        else:
+            search_depts = allowed
+
+        # Build graph input with RBAC context
+        inputs = {
+            "question": request_body.question,
+            "role": user["role"],
+            "departments": search_depts,
+            "user_id": user["username"],
+        }
         result = await app_graph.ainvoke(inputs)
-        
-        # If output is empty (end edge hit or no generation), handle it
-        answer = result.get("generation", "No relevant documents found in the database matching your query.")
+
+        answer = result.get(
+            "generation",
+            "No relevant documents found in the departments you have access to.",
+        )
         docs = result.get("documents", [])
-        
-        # RBAC & De-anonymization Logic
-        if role == "doctor":
-            from app.security.pii import pii_manager # Local import to avoid circular dependency if any
+
+        # De-anonymize for doctors
+        if user["role"] == "doctor":
+            from app.security.pii import pii_manager
             answer = pii_manager.deanonymize(answer)
-            # Optionally unmask source docs too
             for doc in docs:
-                doc.page_content = pii_manager.deanonymize(doc.page_content)
-        
+                doc.content = pii_manager.deanonymize(doc.content)
+
         return QueryResponse(
             answer=answer,
-            sources=docs
+            sources=docs,
+            departments_searched=search_depts,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
