@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.schemas.models import (
     IngestResponse, QueryRequest, QueryResponse,
     LoginRequest, TokenResponse, UserCreate, UserOut,
+    FeedbackRequest, FeedbackResponse,
 )
 from app.ingestion.loader_factory import LoaderFactory
 from app.retrieval.vector_store import vector_store
@@ -15,6 +16,7 @@ from app.core.limiter import limiter
 from app.core.config import settings
 from app.security.auth import user_db, create_access_token, ROLE_HIERARCHY
 from app.security.rbac import get_current_user, require_role, get_user_departments
+from app.observability.tracing import build_langsmith_config, create_feedback as ls_create_feedback
 
 router = APIRouter()
 loader_factory = LoaderFactory()
@@ -192,14 +194,25 @@ async def query_documents(
         else:
             search_depts = allowed
 
+        # Build LangSmith config with hospital-specific metadata & tags
+        langsmith_config = build_langsmith_config(
+            user_id=user["username"],
+            role=user["role"],
+            departments=search_depts,
+        )
+
         # Build graph input with RBAC context
         inputs = {
             "question": request_body.question,
             "role": user["role"],
             "departments": search_depts,
             "user_id": user["username"],
+            "retry_count": 0,
+            "hallucination_score": "",
+            "query_transformations": [],
+            "metadata": langsmith_config.get("metadata", {}),
         }
-        result = await app_graph.ainvoke(inputs)
+        result = await app_graph.ainvoke(inputs, config=langsmith_config)
 
         answer = result.get(
             "generation",
@@ -224,3 +237,38 @@ async def query_documents(
     except Exception as e:
         print(f"Error processing query: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =========================================================================
+# Feedback (LangSmith clinician corrections)
+# =========================================================================
+
+@router.post("/feedback", response_model=FeedbackResponse)
+async def submit_feedback(
+    request: Request,
+    body: FeedbackRequest,
+    user: dict = Depends(get_current_user),
+):
+    """
+    Submit clinician feedback for a previous query.
+
+    When a doctor or nurse corrects the chatbot's response, this endpoint
+    records the correction in LangSmith against the original trace so the
+    team can measure and improve accuracy over time.
+    """
+    success = ls_create_feedback(
+        run_id=body.run_id,
+        key=body.key,
+        score=body.score,
+        comment=body.comment,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=502,
+            detail="Failed to record feedback — LangSmith may be unavailable",
+        )
+    return FeedbackResponse(
+        status="recorded",
+        run_id=body.run_id,
+        key=body.key,
+    )

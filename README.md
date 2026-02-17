@@ -1,8 +1,22 @@
 # ClinIQ — Enterprise Healthcare RAG
 
-A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for small-to-mid-size hospitals. Features **department-scoped vector databases**, **JWT-based RBAC**, **multimodal ingestion** (PDF, DOCX, Excel, Images, DICOM), and an **agentic LangGraph workflow** — all deployable as a single-container application.
+A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for small-to-mid-size hospitals. Features a **5-node stateful LangGraph pipeline** with healthcare guardrails, **LangSmith deep observability**, **department-scoped vector databases**, **JWT-based RBAC**, **multimodal ingestion** (PDF, DOCX, Excel, Images, DICOM), and **clinician feedback loops** — all deployable as a single-container application.
 
 ## 🚀 Key Features
+
+### 🤖 Stateful RAG Pipeline (LangGraph)
+*   **5-Node Graph**: `retrieve` → `grade_documents` → `generate` → `hallucination_check`, with `transform_query` for adaptive retries
+*   **Document Grader**: LLM-based relevance check filters out irrelevant documents before generation — tuned for clinical terminology, ICD/CPT codes, and drug interactions
+*   **Hallucination Grader**: Verifies every clinical claim in the answer is grounded in the retrieved context — critical for patient safety
+*   **Stateful Retries**: If no relevant documents are found, the pipeline rewrites the query (expanding medical abbreviations, adding clinical synonyms) and retries — up to 3 attempts before graceful termination
+*   **Role-Aware Generation**: Prompts adapt based on user role (doctors get full clinical detail, researchers get anonymized data)
+*   **Hybrid Search**: Semantic (embeddings) + BM25 for better recall on medical terms/CPT codes
+
+### Deep Observability (LangSmith)
+*   **Full Trace Capture**: Every graph node, LLM call, and retriever invocation is recorded in LangSmith
+*   **Custom Metadata & Tags**: Each trace carries `department`, `user_role`, and `user_id` — hospital admins can filter logs by clinical department
+*   **Clinician Feedback Loops**: `POST /api/v1/feedback` endpoint lets doctors/nurses submit corrections against specific traces — the **gold standard** for healthcare AI observability
+*   **Latency Tracking**: LangSmith dashboards surface slow queries on sensitive medical operations
 
 ### 🔐 Authentication & Access Control
 *   **JWT-Based Authentication**: Secure login with bcrypt-hashed passwords and token-based sessions
@@ -21,12 +35,6 @@ A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for sm
 *   **Medical Images**: OCR text extraction via Tesseract for scanned documents, X-ray reports, lab results
 *   **DICOM**: Metadata extraction (study description, modality, body part, institution)
 *   **Table-Aware Chunking**: Excel rows preserve header context
-
-### 🤖 Agentic Workflow (LangGraph)
-*   **Router** → **Retriever** → **Grader** → **Generator**
-*   **Role-Aware Generation**: Prompts adapt based on user role (doctors get full detail, researchers get anonymized data)
-*   **Hybrid Search**: Semantic (embeddings) + BM25 for better recall on medical terms/CPT codes
-*   **PII Protection**: Automatic anonymization via Presidio with vault-backed de-anonymization for authorized roles
 
 ### 💎 Premium Frontend
 *   **Glassmorphism dark-mode design** with ambient lighting effects
@@ -67,11 +75,22 @@ graph TD
         Embed --> DBn[("dept_...")]
     end
 
-    subgraph RetrievalGraph ["Agentic Retrieval (LangGraph)"]
-        API -->|Query + Departments| Retriever["Fan-Out Retriever"]
-        Retriever --> Grader{"Document Grader"}
-        Grader -->|Relevant| Generator["Role-Aware Generator"]
-        Grader -->|Irrelevant| Fallback["Fallback Response"]
+    subgraph RetrievalGraph ["Stateful RAG Pipeline (LangGraph)"]
+        API -->|"Query + Departments"| Retriever["🔍 Retrieve"]
+        Retriever --> Grader{"📋 Document Grader"}
+        Grader -->|Relevant| Generator["⚡ Generate"]
+        Grader -->|"No docs + retries left"| Transform["🔄 Transform Query"]
+        Transform --> Retriever
+        Grader -->|"No docs + retries exhausted"| Fallback["🏁 Graceful End"]
+        Generator --> HalCheck{"🛡️ Hallucination Check"}
+        HalCheck -->|Grounded| Response["✅ Final Answer"]
+        HalCheck -->|Hallucinated| Generator
+    end
+
+    subgraph Observability ["LangSmith Observability"]
+        API -->|"metadata & tags"| LS["LangSmith Traces"]
+        LS --> Dashboard["Filter by dept / role / user"]
+        API -->|"POST /feedback"| Feedback["Clinician Corrections"]
     end
 
     VectorDBs <--> Retriever
@@ -84,9 +103,10 @@ graph TD
 | **Frontend** | HTML5, CSS3 (Glassmorphism), Vanilla JS, Marked.js |
 | **Backend** | Python 3.10+, FastAPI, Uvicorn |
 | **Auth** | PyJWT, passlib (bcrypt), SQLite user store |
-| **Orchestration** | LangChain, LangGraph |
-| **Vector DB** | ChromaDB (multi-collection) |
-| **LLM** | OpenAI GPT-4 Turbo |
+| **Orchestration** | LangChain ≥0.3, LangGraph ≥0.2 (stateful RAG) |
+| **Observability** | LangSmith ≥0.2 (tracing, feedback loops) |
+| **Vector DB** | ChromaDB ≥0.5 (multi-collection) |
+| **LLM** | OpenAI GPT-4o (via `langchain-openai`) |
 | **Embeddings** | OpenAI text-embedding-3-small |
 | **Search** | Hybrid (Semantic + BM25) |
 | **PII** | Presidio Analyzer + Anonymizer |
@@ -99,6 +119,7 @@ graph TD
 - Python 3.10+
 - [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (for image text extraction)
 - OpenAI API key
+- LangSmith API key (optional, for observability)
 
 ### Setup
 
@@ -113,6 +134,14 @@ graph TD
     cp .env.example .env
     ```
     Edit `.env` and add your `OPENAI_API_KEY`. Customize `HOSPITAL_DEPARTMENTS` for your hospital.
+
+    To enable LangSmith observability, also set:
+    ```bash
+    LANGCHAIN_TRACING_V2=true
+    LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+    LANGCHAIN_API_KEY=ls__your-langsmith-api-key
+    LANGCHAIN_PROJECT=ClinIQ-Hospital-Beta
+    ```
 
 3.  **Install Dependencies**
     ```bash
@@ -140,7 +169,11 @@ All hospital-specific config lives in `.env`:
 | `JWT_SECRET_KEY` | Secret for JWT signing | change in prod! |
 | `JWT_EXPIRY_MINUTES` | Token expiry (minutes) | `480` (8 hours) |
 | `USERS_DB_PATH` | Path to SQLite user database | `./data/users.db` |
-| `LLM_MODEL` | OpenAI model name | `gpt-4-turbo-preview` |
+| `LLM_MODEL` | OpenAI model name | `gpt-4o` |
+| `MAX_QUERY_RETRIES` | Max query transform retries | `3` |
+| `LANGCHAIN_TRACING_V2` | Enable LangSmith tracing | `true` |
+| `LANGCHAIN_API_KEY` | LangSmith API key | optional |
+| `LANGCHAIN_PROJECT` | LangSmith project name | `ClinIQ-Hospital-Beta` |
 
 ## 👥 Roles & Permissions
 
@@ -162,6 +195,7 @@ All hospital-specific config lives in `.env`:
 | GET | `/api/v1/auth/me` | ✅ | Current user profile |
 | POST | `/api/v1/ingest` | ✅ | Upload doc to department |
 | POST | `/api/v1/query` | ✅ | Query with dept filtering |
+| POST | `/api/v1/feedback` | ✅ | Submit clinician feedback to LangSmith |
 | GET | `/api/v1/departments` | ✅ | User's accessible depts |
 | GET | `/api/v1/departments/stats` | Admin | Doc counts per dept |
 | GET | `/api/v1/admin/users` | Admin | List all users |
@@ -172,51 +206,5 @@ All hospital-specific config lives in `.env`:
 *   **Department Isolation**: Vector DB collections are physically separated per department. RBAC is enforced at the API layer AND the retrieval layer.
 *   **PII Protection**: All ingested text is automatically anonymized via Presidio. Only `doctor` role can de-anonymize.
 *   **No PHI Storage by Design**: This system is for Knowledge Base data (policies, SOPs), not patient records.
-*   **Guardrails**: Generation prompts forbid clinical medical advice and force citation-grounded answers.
-*   **Audit Trail**: User IDs are passed through the retrieval graph for traceability.
-
-## 📁 Project Structure
-
-```
-enterprise-healthcare-rag/
-├── app/
-│   ├── api/
-│   │   └── routes.py           # Auth, ingest, query endpoints
-│   ├── core/
-│   │   ├── config.py           # Settings (JWT, departments, etc.)
-│   │   └── limiter.py          # Rate limiting
-│   ├── ingestion/
-│   │   ├── chunker.py          # Text/table chunking
-│   │   ├── image_parser.py     # OCR & DICOM parsing
-│   │   ├── loader_factory.py   # File type routing
-│   │   └── parsers.py          # PDF, DOCX, Excel parsers
-│   ├── retrieval/
-│   │   ├── graph.py            # LangGraph workflow
-│   │   ├── state.py            # Graph state (role-aware)
-│   │   ├── vector_store.py     # Multi-collection ChromaDB
-│   │   └── nodes/
-│   │       ├── generation.py   # Role-aware LLM generation
-│   │       ├── grading.py      # Document relevance grading
-│   │       └── retrieval.py    # Dept-filtered retrieval
-│   ├── schemas/
-│   │   └── models.py           # Pydantic models
-│   └── security/
-│       ├── auth.py             # JWT + user DB
-│       ├── pii.py              # PII anonymization
-│       ├── rbac.py             # RBAC dependencies
-│       └── vault.py            # Token-to-PII vault
-├── data/
-│   ├── docs/                   # Source documents
-│   ├── vector_db/              # ChromaDB (per-department)
-│   ├── users.db                # SQLite user store
-│   └── vault.db                # PII token vault
-├── static/
-│   ├── css/style.css
-│   ├── index.html
-│   └── js/script.js
-├── tests/
-├── main.py
-├── requirements.txt
-├── Dockerfile
-└── .env.example
-```
+*   **Healthcare Guardrails**: Document grading filters irrelevant context; hallucination grading ensures clinical accuracy; generation prompts forbid ungrounded medical advice.
+*   **Audit Trail**: User IDs, query transformations, and full LangSmith traces provide complete traceability for compliance.

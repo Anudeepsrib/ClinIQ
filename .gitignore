@@ -1,23 +1,51 @@
-# General
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
 
-# Environment
+# --- Environment ---
 .env
 venv/
 env/
+.venv/
 
-# Docker
-.dockerignore
-
-# IDEs
+# --- IDEs ---
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
-# Project Specific
-/.agent/
+# --- Project Data (runtime-generated) ---
 data/vector_db/
 data/docs/
-data/vault.db
 data/test_docs/
+data/vault.db
+data/users.db
+
+# --- Agent / Gemini ---
+.agent/
+.gemini/
+
+# --- Testing ---
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# --- Docker ---
+.dockerignore
+
+# --- Logs ---
+*.log
+
+# --- OS ---
+desktop.ini
+ehthumbs.db

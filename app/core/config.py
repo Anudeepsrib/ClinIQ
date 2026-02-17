@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     CHROMA_PERSIST_DIRECTORY: str = "./data/vector_db"
     DOCS_DIRECTORY: str = "./data/docs"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
-    LLM_MODEL: str = "gpt-4-turbo-preview"
+    LLM_MODEL: str = "gpt-4o"
 
     # --- JWT / Auth ---
     JWT_SECRET_KEY: str = "change-me-in-production-use-openssl-rand"
@@ -29,7 +29,10 @@ class Settings(BaseSettings):
     LANGCHAIN_TRACING_V2: str = "true"
     LANGCHAIN_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGCHAIN_API_KEY: str = "ls__..."  # Placeholder
-    LANGCHAIN_PROJECT: str = "healthcare-rag-mvp"
+    LANGCHAIN_PROJECT: str = "ClinIQ-Hospital-Beta"
+
+    # --- RAG pipeline ---
+    MAX_QUERY_RETRIES: int = 3
 
     @property
     def departments_list(self) -> List[str]:

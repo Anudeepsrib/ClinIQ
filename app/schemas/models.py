@@ -85,3 +85,20 @@ class QueryResponse(BaseModel):
     answer: str
     sources: List[RetrievalResult]
     departments_searched: List[str] = []
+
+
+# ---------------------------------------------------------------------------
+# Feedback schemas (LangSmith clinician corrections)
+# ---------------------------------------------------------------------------
+
+class FeedbackRequest(BaseModel):
+    run_id: str
+    key: str = "correctness"  # e.g. "correctness", "relevance", "safety"
+    score: float = Field(ge=0.0, le=1.0)
+    comment: Optional[str] = None
+
+
+class FeedbackResponse(BaseModel):
+    status: str
+    run_id: str
+    key: str

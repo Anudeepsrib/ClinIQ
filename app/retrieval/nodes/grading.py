@@ -1,56 +1,111 @@
-from typing import Dict, Any
+"""
+Document Grader node — checks if retrieved medical documents are relevant
+to the user's question before passing them to the generation step.
+"""
+
+import logging
+from typing import Any, Dict
+
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from langchain_core.pydantic_v1 import BaseModel, Field
-from app.retrieval.state import GraphState
+from pydantic import BaseModel, Field
+
 from app.core.config import settings
+from app.retrieval.state import GraphState
 from app.schemas.models import RetrievalResult
 
-# Data model for grade
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Structured output model
+# ---------------------------------------------------------------------------
+
 class GradeDocuments(BaseModel):
-    """Binary score for relevance check on retrieved documents."""
-    binary_score: str = Field(description="Documents are relevant to the question, 'yes' or 'no'")
+    """Binary relevance score for a retrieved document."""
+
+    binary_score: str = Field(
+        description="Documents are relevant to the question, 'yes' or 'no'",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Grading prompt — healthcare-tuned
+# ---------------------------------------------------------------------------
+
+GRADER_SYSTEM_PROMPT = """\
+You are a clinical document relevance grader for a hospital knowledge system.
+
+Given a user question and a retrieved document, determine if the document
+is relevant to answering the question.
+
+Relevance criteria:
+- The document contains keywords or semantic meaning related to the question.
+- Clinical terminology, procedure codes (ICD/CPT), drug names, or dosing
+  guidelines that match the clinical intent of the question count as relevant.
+- Policy documents that address the department or topic in the question are
+  relevant even if they use different phrasing.
+
+Give a binary score: 'yes' if the document is relevant, 'no' otherwise.
+Do NOT be overly strict — partial relevance is acceptable."""
+
+GRADER_HUMAN_PROMPT = (
+    "Retrieved document:\n\n{document}\n\nUser question: {question}"
+)
+
+
+# ---------------------------------------------------------------------------
+# Node function
+# ---------------------------------------------------------------------------
 
 def grade_documents(state: GraphState) -> Dict[str, Any]:
     """
-    Determines whether the retrieved documents are relevant to the question
-    
+    Determines whether retrieved documents are relevant to the question.
+
+    Filters out irrelevant documents so only clinically relevant context
+    is passed to the generation step.
+
     Args:
-        state (dict): The current graph state
-        
+        state: The current graph state.
+
     Returns:
-        state (dict): Updates documents key with only relevant documents
+        Updated state with only relevant documents.
     """
-    print("---CHECK RELEVANCE---")
+    logger.info("---CHECK DOCUMENT RELEVANCE---")
     question = state["question"]
     documents = state["documents"]
-    
-    # LLM with function call (structured output)
-    llm = ChatOpenAI(model=settings.LLM_MODEL, temperature=0, api_key=settings.OPENAI_API_KEY)
+
+    # LLM with structured output
+    llm = ChatOpenAI(
+        model=settings.LLM_MODEL,
+        temperature=0,
+        api_key=settings.OPENAI_API_KEY,
+    )
     structured_llm_grader = llm.with_structured_output(GradeDocuments)
-    
-    system = """You are a grader assessing relevance of a retrieved document to a user question. \n 
-    If the document contains keyword(s) or semantic meaning related to the question, grade it as relevant. \n
-    Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question."""
-    
+
     grade_prompt = ChatPromptTemplate.from_messages(
         [
-            ("system", system),
-            ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
+            ("system", GRADER_SYSTEM_PROMPT),
+            ("human", GRADER_HUMAN_PROMPT),
         ]
     )
-    
+
     retrieval_grader = grade_prompt | structured_llm_grader
-    
-    filtered_docs = []
+
+    filtered_docs: list[RetrievalResult] = []
     for doc in documents:
-        score = retrieval_grader.invoke({"question": question, "document": doc.content})
+        score = retrieval_grader.invoke(
+            {"question": question, "document": doc.content}
+        )
         grade = score.binary_score
-        
-        if grade == "yes":
-            print("---GRADE: DOCUMENT RELEVANT---")
+
+        if grade.lower() == "yes":
+            logger.info("  ✓ GRADE: DOCUMENT RELEVANT — %s", doc.source)
             filtered_docs.append(doc)
         else:
-            print("---GRADE: DOCUMENT NOT RELEVANT---")
-            
+            logger.info("  ✗ GRADE: DOCUMENT NOT RELEVANT — %s", doc.source)
+
+    logger.info(
+        "  Kept %d / %d documents after grading", len(filtered_docs), len(documents)
+    )
     return {"documents": filtered_docs, "question": question}
