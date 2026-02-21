@@ -87,6 +87,8 @@ class QueryResponse(BaseModel):
     departments_searched: List[str] = []
     hallucination_score: str = "yes"   # "yes" = grounded, "no" = hallucinated
     confidence_score: float = 0.0      # 0.0–1.0, average similarity of top sources
+    response_type: str = "answer"      # "answer" | "clarification"
+    options: List[str] = []            # clarification options (when response_type == "clarification")
 
 
 # ---------------------------------------------------------------------------

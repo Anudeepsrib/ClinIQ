@@ -332,16 +332,11 @@ function appendAIMessage(data) {
         departments_searched = [],
         hallucination_score = 'yes',
         confidence_score = 0,
+        response_type = 'answer',
+        options = [],
     } = data;
 
-    // Parse markdown
-    let html = marked.parse(answer);
-
-    // Citation refs
-    html = html.replace(/\[Ref (\d+)\]/g,
-        '<span class="citation-ref" title="Source reference">[Ref $1]</span>');
-
-    // Dept badges
+    // Dept searched badges
     let deptsHtml = '';
     if (departments_searched.length > 0) {
         deptsHtml = `<div class="searched-depts">
@@ -350,22 +345,45 @@ function appendAIMessage(data) {
         </div>`;
     }
 
-    // Confidence panel
-    const confidencePanel = buildConfidencePanel(hallucination_score, confidence_score, sources);
-
-    const div = document.createElement('div');
-    div.className = 'message system';
-    div.innerHTML = `
-        <div class="msg-row">
-            <div class="ai-avatar">AI</div>
-            <div class="msg-content">
-                ${deptsHtml}
-                <div class="msg-content-inner">${html}</div>
-                ${confidencePanel}
+    // Decide which panel to render
+    let panelHtml;
+    if (response_type === 'clarification' && options.length > 0) {
+        // ── Clarification mode: show clickable option cards ──
+        panelHtml = buildClarificationPanel(options);
+        const div = document.createElement('div');
+        div.className = 'message system';
+        div.innerHTML = `
+            <div class="msg-row">
+                <div class="ai-avatar">AI</div>
+                <div class="msg-content">
+                    ${deptsHtml}
+                    <div class="msg-content-inner">${escapeHtml(answer)}</div>
+                    ${panelHtml}
+                </div>
             </div>
-        </div>
-    `;
-    chatMessages.appendChild(div);
+        `;
+        chatMessages.appendChild(div);
+    } else {
+        // ── Normal answer: parse markdown + show confidence panel ──
+        let html = marked.parse(answer);
+        html = html.replace(/\[Ref (\d+)\]/g,
+            '<span class="citation-ref" title="Source reference">[Ref $1]</span>');
+        panelHtml = buildConfidencePanel(hallucination_score, confidence_score, sources);
+        const div = document.createElement('div');
+        div.className = 'message system';
+        div.innerHTML = `
+            <div class="msg-row">
+                <div class="ai-avatar">AI</div>
+                <div class="msg-content">
+                    ${deptsHtml}
+                    <div class="msg-content-inner">${html}</div>
+                    ${panelHtml}
+                </div>
+            </div>
+        `;
+        chatMessages.appendChild(div);
+    }
+
     scrollToBottom();
 }
 
@@ -386,7 +404,39 @@ function appendErrorMessage(msg) {
     scrollToBottom();
 }
 
-// ─── Confidence Panel ────────────────────────────────────────────────────
+// ─── Clarification Panel ─────────────────────────────────────────────────
+
+function buildClarificationPanel(options) {
+    const arrowSvg = `<svg class="option-card-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>`;
+    const cards = options.map(opt => `
+        <button class="option-card" onclick="selectOption(this)" data-option="${escapeHtml(opt)}">
+            ${arrowSvg}
+            ${escapeHtml(opt)}
+        </button>`).join('');
+
+    return `
+        <div class="clarification-panel">
+            <p class="clarification-intro">Pick the option that best matches your question, or rephrase below:</p>
+            <div class="option-cards">${cards}</div>
+        </div>`;
+}
+
+function selectOption(btn) {
+    const option = btn.dataset.option;
+    // Highlight the selected card
+    btn.closest('.option-cards').querySelectorAll('.option-card').forEach(c => {
+        c.style.opacity = '0.45';
+        c.disabled = true;
+    });
+    btn.style.opacity = '1';
+    btn.style.borderColor = 'var(--primary)';
+    btn.style.background = 'color-mix(in srgb, var(--primary) 10%, transparent)';
+
+    // Fill the textarea and auto-send
+    questionInput.value = option;
+    autoResize(questionInput);
+    setTimeout(() => sendQuery(), 180);  // slight delay so user sees the selection
+}
 
 function buildConfidencePanel(hallucinationScore, confidenceScore, sources) {
     const isGrounded = hallucinationScore === 'yes';

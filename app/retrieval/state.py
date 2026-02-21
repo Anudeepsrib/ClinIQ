@@ -37,3 +37,5 @@ class GraphState(TypedDict):
     hallucination_score: str
     query_transformations: List[str]
     metadata: Dict[str, Any]
+    clarification_needed: bool
+    clarification_options: List[str]

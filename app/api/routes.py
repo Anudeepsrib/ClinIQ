@@ -211,6 +211,8 @@ async def query_documents(
             "hallucination_score": "",
             "query_transformations": [],
             "metadata": langsmith_config.get("metadata", {}),
+            "clarification_needed": False,
+            "clarification_options": [],
         }
         result = await app_graph.ainvoke(inputs, config=langsmith_config)
 
@@ -220,6 +222,21 @@ async def query_documents(
         )
         docs = result.get("documents", [])
         hallucination_score = result.get("hallucination_score", "yes")
+
+        # ── Clarification short-circuit ──────────────────────────────────────
+        # If the clarification_check node flagged the query as ambiguous,
+        # return the options immediately — no generation was performed.
+        clarification_needed  = result.get("clarification_needed", False)
+        clarification_options = result.get("clarification_options", [])
+
+        if clarification_needed and clarification_options:
+            return QueryResponse(
+                answer="I'd like to make sure I give you the most relevant information. Could you clarify what you're looking for?",
+                sources=[],
+                departments_searched=search_depts,
+                response_type="clarification",
+                options=clarification_options,
+            )
 
         # Confidence = average similarity score of top-3 retrieved sources
         top_scores = [d.score for d in docs[:3] if hasattr(d, "score") and d.score is not None]
