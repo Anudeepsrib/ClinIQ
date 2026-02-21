@@ -1,54 +1,40 @@
 # ClinIQ — Enterprise Healthcare RAG
 
-A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for small-to-mid-size hospitals. Features a **5-node stateful LangGraph pipeline** with healthcare guardrails, **LangSmith deep observability**, **department-scoped vector databases**, **JWT-based RBAC**, **multimodal ingestion** (PDF, DOCX, Excel, Images, DICOM), **per-response grounding & confidence indicators**, and **clinician feedback loops** — all deployable as a single-container application.
+A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for small-to-mid-size hospitals. Features a **6-node stateful LangGraph pipeline** with healthcare guardrails, **LangSmith deep observability**, **department-scoped vector databases**, **JWT-based RBAC**, **multimodal ingestion** (PDF, DOCX, Excel, Images, DICOM), **Claude-style clarification questions**, and **clinician feedback loops** — all deployable as a single-container application.
 
 ## 🚀 Key Features
 
 ### 🤖 Stateful RAG Pipeline (LangGraph)
-*   **5-Node Graph**: `retrieve` → `grade_documents` → `generate` → `hallucination_check`, with `transform_query` for adaptive retries
-*   **Document Grader**: LLM-based relevance check filters out irrelevant documents before generation — tuned for clinical terminology, ICD/CPT codes, and drug interactions
-*   **Hallucination Grader**: Verifies every clinical claim in the answer is grounded in the retrieved context — critical for patient safety
-*   **Stateful Retries**: If no relevant documents are found, the pipeline rewrites the query (expanding medical abbreviations, adding clinical synonyms) and retries — up to 3 attempts before graceful termination
-*   **Role-Aware Generation**: Prompts adapt based on user role (doctors get full clinical detail, researchers get anonymized data)
-*   **Hybrid Search**: Semantic (embeddings) + BM25 for better recall on medical terms/CPT codes
+*   **6-Node Graph**: `clarification_check` → `retrieve` → `grade_documents` → `generate` → `hallucination_check`, with `transform_query` for adaptive retries.
+*   **Clarification Node**: Detects ambiguous clinical queries using a structured LLM before retrieval. Short-circuits the pipeline to ask specific follow-up questions instead of guessing.
+*   **Document Grader**: LLM-based relevance check filters out irrelevant documents before generation — tuned for clinical terminology, ICD/CPT codes, and drug interactions.
+*   **Hallucination Grader**: Verifies every clinical claim in the answer is grounded in the retrieved context — critical for patient safety.
+*   **Stateful Retries**: If no relevant documents are found, the pipeline rewrites the query (expanding medical abbreviations, adding clinical synonyms) and retries — up to 3 attempts before graceful termination.
+*   **Role-Aware Generation**: Prompts adapt based on user role (doctors get full clinical detail, researchers get anonymized data).
+*   **Hybrid Search**: Semantic (embeddings) + BM25 for better recall on medical terms/CPT codes.
 
-### 🎯 Grounding & Confidence Indicators
-*   **Hallucination Score**: Each API response returns `hallucination_score` (`"yes"` = grounded, `"no"` = unverified) from the LangGraph pipeline
-*   **Confidence Score**: Computed as the average cosine similarity of the top-3 retrieved source chunks (0.0–1.0)
-*   **Visual Panels**: Every AI response renders a **✓ Grounded** (emerald) or **⚠ Unverified** (amber) badge, an animated confidence bar (green/amber/red by tier), and a collapsible source list with per-source similarity scores
+### 🎯 Clarification & Confidence Indicators
+*   **Claude-Style Options**: When a query is ambiguous (e.g. "tell me about the policy"), ClinIQ provides 2–4 clickable card options to refine the search.
+*   **Hallucination Score**: Each API response returns `hallucination_score` (`"yes"` = grounded, `"no"` = unverified) from the LangGraph pipeline.
+*   **Confidence Score**: Computed as the average cosine similarity of the top-3 retrieved source chunks (0.0–1.0).
+*   **Visual Panels**: Every AI response renders a **✓ Grounded** (emerald) or **⚠ Unverified** (amber) badge, an animated confidence bar (green/amber/red by tier), and a collapsible source list.
 
 ### Deep Observability (LangSmith)
-*   **Full Trace Capture**: Every graph node, LLM call, and retriever invocation is recorded in LangSmith
-*   **Custom Metadata & Tags**: Each trace carries `department`, `user_role`, and `user_id` — hospital admins can filter logs by clinical department
-*   **Clinician Feedback Loops**: `POST /api/v1/feedback` endpoint lets doctors/nurses submit corrections against specific traces — the **gold standard** for healthcare AI observability
-*   **Latency Tracking**: LangSmith dashboards surface slow queries on sensitive medical operations
+*   **Full Trace Capture**: Every graph node, LLM call, and retriever invocation is recorded in LangSmith.
+*   **Custom Metadata & Tags**: Each trace carries `department`, `user_role`, and `user_id` — hospital admins can filter logs by clinical department.
+*   **Clinician Feedback Loops**: `POST /api/v1/feedback` endpoint lets doctors/nurses submit corrections against specific traces — the **gold standard** for healthcare AI observability.
 
 ### 🔐 Authentication & Access Control
-*   **JWT-Based Authentication**: Secure login with bcrypt-hashed passwords and token-based sessions
-*   **Role Hierarchy**: `Admin` → `Doctor` → `Nurse` → `Technician` → `Researcher` → `Viewer`
-*   **Department-Scoped RBAC**: Each user is assigned departments they can access — data isolation is enforced at both the API and vector DB layer
-*   **Admin Panel**: Create/delete users, assign roles and departments, view system stats
-
-### 📊 Multi-Collection Vector Store
-*   **One ChromaDB collection per department**: `radiology`, `pharmacy`, `administration`, `nursing`, `laboratory`, `emergency`, `cardiology`, `oncology`, `orthopedics`, `pediatrics`, `general`
-*   **Complete data isolation**: A nurse with `[nursing, general]` access can never see radiology documents
-*   **Fan-out search**: Queries search across all allowed departments and merge results intelligently
-*   **Configurable**: Departments are defined in `.env` — hospitals plug in their own structure
-
-### 🖼️ Multimodal Ingestion
-*   **Documents**: PDF (Policies), DOCX (Procedures), Excel (Coverage Tables)
-*   **Medical Images**: OCR text extraction via Tesseract for scanned documents, X-ray reports, lab results
-*   **DICOM**: Metadata extraction (study description, modality, body part, institution)
-*   **Table-Aware Chunking**: Excel rows preserve header context
+*   **JWT-Based Authentication**: Secure login with bcrypt-hashed passwords and token-based sessions.
+*   **Role Hierarchy**: `Admin` → `Doctor` → `Nurse` → `Technician` → `Researcher` → `Viewer`.
+*   **Department-Scoped RBAC**: Each user is assigned departments they can access — data isolation is enforced at both the API and vector DB layer.
 
 ### 💎 Claude-Inspired UI
-*   **Teal/emerald healthcare palette** with warm off-white background — clean, content-first aesthetic
-*   **Sidebar layout**: Department filter chips, per-session chat history, user avatar + role badge
-*   **Full-width AI messages**: No chat bubbles for responses — identical reading experience to Claude
-*   **Confidence panel**: Per-response grounding badge + animated confidence bar + collapsible sources
-*   **Knowledge Base drawer**: Slide-in right panel for file uploads (no page switching)
-*   **Empty state**: Suggestion cards for common clinical queries
-*   **Responsive**: Sidebar collapses on mobile/tablet
+*   **Teal/emerald healthcare palette** with warm off-white background — clean, content-first aesthetic.
+*   **Sidebar layout**: Department filter chips, per-session chat history, user avatar + role badge.
+*   **Full-width AI messages**: No chat bubbles for responses — identical reading experience to Claude.
+*   **Interactive Option Cards**: Clarification cards auto-fill the input and re-send the query on click.
+*   **Knowledge Base drawer**: Slide-in right panel for file uploads (no page switching).
 
 ## 🏗️ Architecture
 
@@ -81,7 +67,9 @@ graph TD
     end
 
     subgraph RetrievalGraph ["Stateful RAG Pipeline (LangGraph)"]
-        API -->|"Query + Departments"| Retriever["🔍 Retrieve"]
+        API -->|"Query + Departments"| ClarCheck{"🤔 Clarification Check"}
+        ClarCheck -->|Ambiguous| ClarEnd["🏁 End (Show Options)"]
+        ClarCheck -->|Specific| Retriever["🔍 Retrieve"]
         Retriever --> Grader{"📋 Document Grader"}
         Grader -->|Relevant| Generator["⚡ Generate"]
         Grader -->|"No docs + retries left"| Transform["🔄 Transform Query"]
@@ -113,126 +101,60 @@ graph TD
 | **Vector DB** | ChromaDB ≥0.5 (multi-collection) |
 | **LLM** | OpenAI GPT-4o (via `langchain-openai`) |
 | **Embeddings** | OpenAI text-embedding-3-small |
-| **Search** | Hybrid (Semantic + BM25) |
-| **PII** | Presidio Analyzer + Anonymizer |
-| **Multimodal** | Pillow, pytesseract (OCR), pydicom |
-| **Deployment** | Docker, Render |
 
 ## 🏃‍♂️ How to Run Locally
 
 ### Prerequisites
 - Python 3.10+
-- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) (for image text extraction)
+- [Tesseract OCR](https://github.com/tesseract-ocr/tesseract)
 - OpenAI API key
-- LangSmith API key (optional, for observability)
+- LangSmith API key (optional)
 
 ### Setup
 
-1.  **Clone the repository**
+1.  **Clone & Install**
     ```bash
     git clone https://github.com/your-username/enterprise-healthcare-rag.git
-    cd enterprise-healthcare-rag
+    pip install -r requirements.txt
     ```
 
-2.  **Set up Environment**
+2.  **Environment**
     ```bash
     cp .env.example .env
-    ```
-    Edit `.env` and add your `OPENAI_API_KEY`. Customize `HOSPITAL_DEPARTMENTS` for your hospital.
-
-    To enable LangSmith observability, also set:
-    ```bash
-    LANGCHAIN_TRACING_V2=true
-    LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
-    LANGCHAIN_API_KEY=ls__your-langsmith-api-key
-    LANGCHAIN_PROJECT=ClinIQ-Hospital-Beta
+    # Add OPENAI_API_KEY
     ```
 
-3.  **Install Dependencies**
-    ```bash
-    pip install -r requirements.txt
-    python -m spacy download en_core_web_sm
-    ```
-
-4.  **Run the Server**
+3.  **Run**
     ```bash
     uvicorn main:app --reload
     ```
-    The UI is at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
+    UI at `http://localhost:8000`. Default admin: `admin` / `admin123`.
 
-5.  **Login**
-    Default admin: `admin` / `admin123` (change in production!)
+## 🎯 Clarification Options
 
-## 🎯 Confidence & Grounding Indicators
+Every AI response includes a confidence panel, but **ambiguous queries** trigger a special clarification flow:
 
-Every AI response includes a confidence panel directly in the chat UI:
+| Scenario | UI Response |
+|----------|-------------|
+| **Ambiguous** (e.g., "medication info") | Shows 2–4 clickable cards with specific follow-up questions. |
+| **Specific** (e.g., "prior auth for knee MRI") | Runs the full RAG pipeline and returns a grounded answer. |
 
-| Indicator | Meaning |
-|-----------|---------|
-| **✓ Grounded** (emerald badge) | Hallucination check passed — all claims are supported by retrieved documents |
-| **⚠ Unverified** (amber badge) | Hallucination check flagged possible unsupported claims |
-| **Green bar ≥ 70%** | High confidence — top sources are strongly relevant |
-| **Amber bar 40–69%** | Medium confidence — some relevant context found |
-| **Red bar < 40%** | Low confidence — answer may be based on limited context |
-
-The API also exposes these fields programmatically:
-```json
-{
-  "answer": "...",
-  "hallucination_score": "yes",
-  "confidence_score": 0.82,
-  "sources": [...]
-}
-```
-
-## 🔑 Configuration
-
-All hospital-specific config lives in `.env`:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | Your OpenAI API key | required |
-| `HOSPITAL_DEPARTMENTS` | Comma-separated list of departments | `radiology,pharmacy,...,general` |
-| `JWT_SECRET_KEY` | Secret for JWT signing | change in prod! |
-| `JWT_EXPIRY_MINUTES` | Token expiry (minutes) | `480` (8 hours) |
-| `USERS_DB_PATH` | Path to SQLite user database | `./data/users.db` |
-| `LLM_MODEL` | OpenAI model name | `gpt-4o` |
-| `MAX_QUERY_RETRIES` | Max query transform retries | `3` |
-| `LANGCHAIN_TRACING_V2` | Enable LangSmith tracing | `true` |
-| `LANGCHAIN_API_KEY` | LangSmith API key | optional |
-| `LANGCHAIN_PROJECT` | LangSmith project name | `ClinIQ-Hospital-Beta` |
+The API returns `response_type="clarification"` and an `options` list in these cases.
 
 ## 👥 Roles & Permissions
 
-| Role | Access Level | Default Departments |
-|------|-------------|-------------------|
-| **Admin** | Full system access, user management | All |
-| **Doctor** | Full clinical data, PII de-anonymization | All |
-| **Nurse** | Care protocols and procedures | nursing, general, emergency |
-| **Technician** | Technical procedures and safety | laboratory, radiology |
-| **Researcher** | Anonymized aggregate data | general |
-| **Viewer** | High-level policy summaries | general |
+| Role | Access Level |
+|------|-------------|
+| **Admin** | Full system access, user management |
+| **Doctor** | Full clinical data, PII de-anonymization |
+| **Nurse** | Care protocols (nursing, general, emergency) |
+| **Technician** | Technical procedures (laboratory, radiology) |
 
-## 📡 API Endpoints
+## 📡 Key API Endpoints
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/v1/auth/login` | ❌ | Login, returns JWT |
-| POST | `/api/v1/auth/register` | Admin | Create user |
-| GET | `/api/v1/auth/me` | ✅ | Current user profile |
-| POST | `/api/v1/ingest` | ✅ | Upload doc to department |
-| POST | `/api/v1/query` | ✅ | Query — returns answer, sources, `hallucination_score`, `confidence_score` |
-| POST | `/api/v1/feedback` | ✅ | Submit clinician feedback to LangSmith |
-| GET | `/api/v1/departments` | ✅ | User's accessible depts |
-| GET | `/api/v1/departments/stats` | Admin | Doc counts per dept |
-| GET | `/api/v1/admin/users` | Admin | List all users |
-| DELETE | `/api/v1/admin/users/{username}` | Admin | Delete user |
-
-## 🔒 Security & Healthcare Considerations
-
-*   **Department Isolation**: Vector DB collections are physically separated per department. RBAC is enforced at the API layer AND the retrieval layer.
-*   **PII Protection**: All ingested text is automatically anonymized via Presidio. Only `doctor` role can de-anonymize.
-*   **No PHI Storage by Design**: This system is for Knowledge Base data (policies, SOPs), not patient records.
-*   **Healthcare Guardrails**: Document grading filters irrelevant context; hallucination grading ensures clinical accuracy; generation prompts forbid ungrounded medical advice.
-*   **Grounding Transparency**: Every response exposes its hallucination grade and source confidence score — clinicians can immediately assess AI reliability.
-*   **Audit Trail**: User IDs, query transformations, and full LangSmith traces provide complete traceability for compliance.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/v1/auth/login` | Returns JWT |
+| POST | `/api/v1/query` | Returns answer OR clarification options |
+| POST | `/api/v1/ingest` | Upload document to specific department |
+| POST | `/api/v1/feedback` | Clinician corrections to LangSmith |
