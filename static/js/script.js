@@ -1,5 +1,5 @@
 /* =========================================================================
-   ClinIQ Frontend — Auth, Department-Scoped Upload & Query, Admin Panel
+   ClinIQ Frontend — Claude-Inspired UI with Confidence Indicators
    ========================================================================= */
 
 const API = '/api/v1';
@@ -8,9 +8,10 @@ let authToken = null;
 let userDepartments = [];
 let allDepartments = [];
 let selectedQueryDepts = new Set();
+let chatHistoryStore = []; // [{id, title, ts}]
 
 // ── DOM Refs ──
-const loginModal = document.getElementById('loginModal');
+const loginPage = document.getElementById('loginPage');
 const mainApp = document.getElementById('mainApp');
 const loginForm = document.getElementById('loginForm');
 const loginError = document.getElementById('loginError');
@@ -18,15 +19,16 @@ const fileInput = document.getElementById('fileInput');
 const dropZone = document.getElementById('dropZone');
 const uploadList = document.getElementById('uploadList');
 const questionInput = document.getElementById('questionInput');
-const chatHistory = document.getElementById('chatHistory');
+const chatMessages = document.getElementById('chatMessages');
+const chatEmpty = document.getElementById('chatEmpty');
 const sendBtn = document.getElementById('sendBtn');
 const notification = document.getElementById('notification');
+const chatHistoryList = document.getElementById('chatHistoryList');
 
 // =========================================================================
 // AUTH
 // =========================================================================
 
-// Check for existing token on load
 (function init() {
     const saved = localStorage.getItem('cliniq_token');
     const savedUser = localStorage.getItem('cliniq_user');
@@ -71,41 +73,38 @@ function logout() {
     authToken = null;
     currentUser = null;
     mainApp.classList.add('hidden');
-    loginModal.classList.remove('hidden');
+    loginPage.classList.remove('hidden');
     document.getElementById('loginUsername').value = '';
     document.getElementById('loginPassword').value = '';
 }
 
-function authHeaders() {
-    return {
-        'Authorization': `Bearer ${authToken}`,
-    };
-}
-
-function authJsonHeaders() {
-    return {
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-    };
-}
+function authHeaders() { return { 'Authorization': `Bearer ${authToken}` }; }
+function authJsonHeaders() { return { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' }; }
 
 async function showApp() {
-    loginModal.classList.add('hidden');
+    loginPage.classList.add('hidden');
     mainApp.classList.remove('hidden');
 
-    // Update nav
-    document.getElementById('navUser').textContent = currentUser.full_name || currentUser.username;
+    // Nav user
+    const name = currentUser.full_name || currentUser.username;
+    document.getElementById('navUser').textContent = name;
+    const letter = name.charAt(0).toUpperCase();
+    document.getElementById('userAvatarLetter').textContent = letter;
+
     const roleBadge = document.getElementById('navRole');
     roleBadge.textContent = currentUser.role.charAt(0).toUpperCase() + currentUser.role.slice(1);
     roleBadge.className = `role-badge role-${currentUser.role}`;
 
-    // Show/hide admin button
+    // Admin button
     const adminBtn = document.getElementById('adminToggleBtn');
-    adminBtn.style.display = currentUser.role === 'admin' ? '' : 'none';
+    adminBtn.style.display = currentUser.role === 'admin' ? 'flex' : 'none';
 
-    // Load departments
     await loadDepartments();
 }
+
+// =========================================================================
+// DEPARTMENTS
+// =========================================================================
 
 async function loadDepartments() {
     try {
@@ -115,31 +114,27 @@ async function loadDepartments() {
         userDepartments = data.departments;
         allDepartments = data.all_departments;
 
-        // Populate upload dropdown
+        // Upload dropdown
         const sel = document.getElementById('uploadDept');
         sel.innerHTML = userDepartments.map(d =>
             `<option value="${d}">${d.charAt(0).toUpperCase() + d.slice(1)}</option>`
         ).join('');
 
-        // Populate query filter chips
+        // Sidebar dept filter chips
         const filter = document.getElementById('deptFilter');
-        filter.innerHTML = '<span class="filter-label">Search in:</span>' +
-            userDepartments.map(d =>
-                `<button class="dept-chip active" data-dept="${d}" onclick="toggleDeptChip(this)">${d.charAt(0).toUpperCase() + d.slice(1)}</button>`
-            ).join('');
-
-        // All selected by default
+        filter.innerHTML = userDepartments.map(d =>
+            `<button class="dept-chip active" data-dept="${d}" onclick="toggleDeptChip(this)">${d.charAt(0).toUpperCase() + d.slice(1)}</button>`
+        ).join('');
         selectedQueryDepts = new Set(userDepartments);
 
-        // Populate admin create-user dept checkboxes
+        // Admin checkboxes
         const checkboxArea = document.getElementById('deptCheckboxes');
         if (checkboxArea) {
-            checkboxArea.innerHTML = '<label class="cb-label">Departments:</label>' +
+            checkboxArea.innerHTML =
                 allDepartments.map(d =>
                     `<label class="cb-item"><input type="checkbox" value="${d}" checked> ${d.charAt(0).toUpperCase() + d.slice(1)}</label>`
                 ).join('');
         }
-
     } catch (err) {
         console.error(err);
     }
@@ -162,10 +157,7 @@ function toggleDeptChip(btn) {
 
 fileInput.addEventListener('change', handleFileSelect);
 
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('dragover');
-});
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
 dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
@@ -185,10 +177,8 @@ function previewFile(file) {
     const preview = document.getElementById('imagePreview');
     const img = document.getElementById('previewImg');
     const name = document.getElementById('previewName');
-
     if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        img.src = url;
+        img.src = URL.createObjectURL(file);
         name.textContent = file.name;
         preview.classList.remove('hidden');
     } else {
@@ -198,17 +188,16 @@ function previewFile(file) {
 
 async function uploadFile(file) {
     const department = document.getElementById('uploadDept').value;
-
     const item = document.createElement('div');
     item.className = 'file-item';
     item.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-            <polyline points="14 2 14 8 20 8"></polyline>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
         </svg>
-        <span>${file.name}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;">${file.name}</span>
         <span class="dept-tag">${department}</span>
-        <span class="file-status">Uploading...</span>
+        <span class="file-status">Uploading…</span>
     `;
     uploadList.prepend(item);
 
@@ -222,25 +211,21 @@ async function uploadFile(file) {
             headers: authHeaders(),
             body: formData,
         });
-
         if (!res.ok) {
             const err = await res.json();
             throw new Error(err.detail || 'Upload failed');
         }
-
         const data = await res.json();
         const status = item.querySelector('.file-status');
-        status.textContent = `✓ ${data.chunks_count} chunks (${data.modality})`;
-        status.style.color = '#34d399';
+        status.textContent = `✓ ${data.chunks_count} chunks`;
+        status.style.color = 'var(--emerald)';
         showNotification(`✓ ${file.name} indexed to ${department}`);
     } catch (err) {
         const status = item.querySelector('.file-status');
         status.textContent = 'Error';
-        status.style.color = '#f87171';
+        status.style.color = 'var(--rose)';
         showNotification(err.message);
     }
-
-    // Reset preview
     document.getElementById('imagePreview').classList.add('hidden');
 }
 
@@ -255,14 +240,31 @@ function handleEnter(e) {
     }
 }
 
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+}
+
+function usesuggestion(btn) {
+    questionInput.value = btn.textContent;
+    questionInput.focus();
+    autoResize(questionInput);
+}
+
 async function sendQuery() {
     const text = questionInput.value.trim();
     if (!text) return;
 
-    addMessage(text, 'user');
-    questionInput.value = '';
+    // Hide empty state
+    chatEmpty.style.display = 'none';
 
-    const loadingId = addMessage('Thinking...', 'system', true);
+    // User message
+    appendUserMessage(text);
+    questionInput.value = '';
+    questionInput.style.height = 'auto';
+
+    // Typing indicator
+    const thinkingId = appendThinkingIndicator();
     sendBtn.disabled = true;
 
     const departments = [...selectedQueryDepts];
@@ -273,75 +275,253 @@ async function sendQuery() {
             headers: authJsonHeaders(),
             body: JSON.stringify({ question: text, departments }),
         });
-
         const data = await res.json();
-        document.getElementById(loadingId).remove();
+        document.getElementById(thinkingId)?.remove();
 
         if (!res.ok) throw new Error(data.detail || 'Query failed');
 
-        let formattedAnswer = marked.parse(data.answer);
-        formattedAnswer = formattedAnswer.replace(/\[Ref (\d+)\]/g,
-            '<span class="citation-ref" title="Source available below">[Ref $1]</span>');
+        // Add to sidebar history
+        addToHistory(text);
 
-        // Departments searched badge
-        if (data.departments_searched && data.departments_searched.length > 0) {
-            formattedAnswer = `<div class="searched-depts">Searched: ${data.departments_searched.map(d =>
-                `<span class="dept-chip-sm">${d}</span>`).join('')}</div>` + formattedAnswer;
-        }
-
-        // Append sources
-        if (data.sources && data.sources.length > 0) {
-            formattedAnswer += '<hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 1em 0;">';
-            formattedAnswer += '<small style="color:var(--text-secondary)"><strong>Sources:</strong><br>';
-            data.sources.forEach((src, idx) => {
-                const loc = src.page ? `Page ${src.page}` : (src.metadata.sheet_name ? `Sheet: ${src.metadata.sheet_name}` : '');
-                const dept = src.metadata.department ? ` [${src.metadata.department}]` : '';
-                formattedAnswer += `[Ref ${idx + 1}] ${src.source}${dept} ${loc}<br>`;
-            });
-            formattedAnswer += '</small>';
-        }
-
-        addMessage(formattedAnswer, 'system', false, true);
+        appendAIMessage(data);
 
     } catch (err) {
-        document.getElementById(loadingId)?.remove();
-        addMessage('Sorry, something went wrong: ' + err.message, 'system');
-        console.error(err);
+        document.getElementById(thinkingId)?.remove();
+        appendErrorMessage(err.message);
     } finally {
         sendBtn.disabled = false;
         questionInput.focus();
     }
 }
 
-function addMessage(text, sender, isLoading = false, isHtml = false) {
-    const id = 'msg-' + Date.now();
+// ─── Message renderers ───────────────────────────────────────────────────
+
+function appendUserMessage(text) {
     const div = document.createElement('div');
-    div.className = `message ${sender}`;
-    div.id = id;
-
-    const avatar = sender === 'user' ? (currentUser?.full_name?.[0] || 'U') : 'AI';
-    let contentHtml = isHtml ? text : text.replace(/\n/g, '<br>');
-    if (isLoading) contentHtml = '<span class="pulse">Searching across departments...</span>';
-
-    div.innerHTML = `
-        <div class="avatar">${avatar}</div>
-        <div class="content">${contentHtml}</div>
-    `;
-
-    chatHistory.appendChild(div);
-    chatHistory.scrollTop = chatHistory.scrollHeight;
-    return id;
+    div.className = 'message user';
+    div.innerHTML = `<div class="msg-bubble">${escapeHtml(text)}</div>`;
+    chatMessages.appendChild(div);
+    scrollToBottom();
 }
 
-function clearChat() {
-    chatHistory.innerHTML = `
-        <div class="message system">
-            <div class="avatar">AI</div>
-            <div class="content">
-                Chat cleared. Ready for new questions. Your departments: ${[...selectedQueryDepts].join(', ')}.
+function appendThinkingIndicator() {
+    const id = 'thinking-' + Date.now();
+    const div = document.createElement('div');
+    div.className = 'message system';
+    div.id = id;
+    div.innerHTML = `
+        <div class="msg-row">
+            <div class="ai-avatar">AI</div>
+            <div class="msg-content">
+                <div class="thinking-row">
+                    <div class="thinking-dots"><span></span><span></span><span></span></div>
+                    Searching across departments…
+                </div>
             </div>
         </div>
     `;
+    chatMessages.appendChild(div);
+    scrollToBottom();
+    return id;
+}
+
+function appendAIMessage(data) {
+    const {
+        answer,
+        sources = [],
+        departments_searched = [],
+        hallucination_score = 'yes',
+        confidence_score = 0,
+    } = data;
+
+    // Parse markdown
+    let html = marked.parse(answer);
+
+    // Citation refs
+    html = html.replace(/\[Ref (\d+)\]/g,
+        '<span class="citation-ref" title="Source reference">[Ref $1]</span>');
+
+    // Dept badges
+    let deptsHtml = '';
+    if (departments_searched.length > 0) {
+        deptsHtml = `<div class="searched-depts">
+            <span style="font-size:0.7rem;color:var(--text-muted);margin-right:0.3rem;">Searched:</span>
+            ${departments_searched.map(d => `<span class="dept-chip-sm">${d}</span>`).join('')}
+        </div>`;
+    }
+
+    // Confidence panel
+    const confidencePanel = buildConfidencePanel(hallucination_score, confidence_score, sources);
+
+    const div = document.createElement('div');
+    div.className = 'message system';
+    div.innerHTML = `
+        <div class="msg-row">
+            <div class="ai-avatar">AI</div>
+            <div class="msg-content">
+                ${deptsHtml}
+                <div class="msg-content-inner">${html}</div>
+                ${confidencePanel}
+            </div>
+        </div>
+    `;
+    chatMessages.appendChild(div);
+    scrollToBottom();
+}
+
+function appendErrorMessage(msg) {
+    const div = document.createElement('div');
+    div.className = 'message system';
+    div.innerHTML = `
+        <div class="msg-row">
+            <div class="ai-avatar" style="background:var(--rose);">!</div>
+            <div class="msg-content">
+                <div class="msg-content-inner" style="color:var(--rose);">
+                    Something went wrong: ${escapeHtml(msg)}
+                </div>
+            </div>
+        </div>
+    `;
+    chatMessages.appendChild(div);
+    scrollToBottom();
+}
+
+// ─── Confidence Panel ────────────────────────────────────────────────────
+
+function buildConfidencePanel(hallucinationScore, confidenceScore, sources) {
+    const isGrounded = hallucinationScore === 'yes';
+
+    // Convert 0-1 score to percentage. If score looks like a raw distance metric
+    // (ChromaDB returns L2 distances where lower = better), cap at 1.
+    let pct = Math.round(Math.min(confidenceScore, 1) * 100);
+    // Determine confidence tier for bar color
+    const tier = pct >= 70 ? 'high' : pct >= 40 ? 'medium' : 'low';
+
+    const badgeClass = isGrounded ? 'grounded' : 'unverified';
+    const badgeIcon = isGrounded
+        ? `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>`
+        : `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+    const badgeLabel = isGrounded ? 'Grounded' : 'Unverified';
+
+    // Sources list
+    let sourcesHtml = '';
+    if (sources.length > 0) {
+        const items = sources.map((src, i) => {
+            const loc = src.page ? `p.${src.page}` : (src.metadata?.sheet_name ? src.metadata.sheet_name : '');
+            const dept = src.metadata?.department || '';
+            const score = typeof src.score === 'number' ? `${Math.round(src.score * 100)}%` : '';
+            const label = [src.source, loc].filter(Boolean).join(' · ');
+            return `
+                <div class="source-item">
+                    <span class="source-num">${i + 1}</span>
+                    <span class="source-text" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+                    ${dept ? `<span class="source-dept">${dept}</span>` : ''}
+                    ${score ? `<span class="source-score">${score}</span>` : ''}
+                </div>`;
+        }).join('');
+
+        sourcesHtml = `
+            <div class="sources-wrap">
+                <button class="sources-toggle" onclick="toggleSources(this)">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    ${sources.length} source${sources.length !== 1 ? 's' : ''}
+                </button>
+                <div class="sources-list" style="display:none;">${items}</div>
+            </div>`;
+    }
+
+    return `
+        <div class="confidence-panel">
+            <div class="confidence-header">
+                <span class="grounding-badge ${badgeClass}">${badgeIcon} ${badgeLabel}</span>
+                <span class="confidence-label">Confidence</span>
+            </div>
+            <div class="confidence-bar-wrap">
+                <div class="confidence-bar">
+                    <div class="confidence-fill ${tier}" style="width:${pct}%"></div>
+                </div>
+                <span class="confidence-pct">${pct}%</span>
+            </div>
+            ${sourcesHtml}
+        </div>`;
+}
+
+function toggleSources(btn) {
+    btn.classList.toggle('open');
+    const list = btn.nextElementSibling;
+    list.style.display = list.style.display === 'none' ? 'flex' : 'none';
+    list.style.flexDirection = 'column';
+}
+
+// =========================================================================
+// SIDEBAR HISTORY
+// =========================================================================
+
+function addToHistory(question) {
+    const entry = {
+        id: Date.now(),
+        title: question.length > 40 ? question.slice(0, 40) + '…' : question,
+        ts: new Date(),
+    };
+    chatHistoryStore.unshift(entry);
+    renderHistorySidebar();
+}
+
+function renderHistorySidebar() {
+    if (chatHistoryStore.length === 0) {
+        chatHistoryList.innerHTML = '';
+        return;
+    }
+
+    // Group: Today vs Earlier
+    const now = new Date();
+    const today = chatHistoryStore.filter(e => isToday(e.ts, now));
+    const older = chatHistoryStore.filter(e => !isToday(e.ts, now));
+
+    let html = '';
+    if (today.length > 0) {
+        html += `<div class="history-group">
+            <div class="history-group-label">Today</div>
+            ${today.map(e => historyItem(e)).join('')}
+        </div>`;
+    }
+    if (older.length > 0) {
+        html += `<div class="history-group">
+            <div class="history-group-label">Earlier</div>
+            ${older.map(e => historyItem(e)).join('')}
+        </div>`;
+    }
+    chatHistoryList.innerHTML = html;
+}
+
+function historyItem(e) {
+    return `<div class="history-item" title="${escapeHtml(e.title)}">
+        <span class="history-item-dot"></span>
+        ${escapeHtml(e.title)}
+    </div>`;
+}
+
+function isToday(date, now) {
+    return date.getFullYear() === now.getFullYear() &&
+        date.getMonth() === now.getMonth() &&
+        date.getDate() === now.getDate();
+}
+
+// =========================================================================
+// CLEAR CHAT
+// =========================================================================
+
+function clearChat() {
+    chatMessages.innerHTML = '';
+    chatEmpty.style.display = '';
+}
+
+// =========================================================================
+// KB PANEL (drawer)
+// =========================================================================
+
+function toggleKbPanel() {
+    document.getElementById('kbPanel').classList.toggle('open');
 }
 
 // =========================================================================
@@ -366,16 +546,13 @@ async function loadUsers() {
         list.innerHTML = users.map(u => `
             <div class="user-row">
                 <div>
-                    <strong>${u.full_name || u.username}</strong>
+                    <strong style="font-size:0.8rem;">${escapeHtml(u.full_name || u.username)}</strong>
                     <span class="role-badge role-${u.role}">${u.role}</span>
                 </div>
                 <div class="user-depts">${u.departments.join(', ')}</div>
-                ${u.role !== 'admin' ? `<button class="btn-ghost btn-sm-danger" onclick="deleteUser('${u.username}')">✕</button>` : ''}
-            </div>
-        `).join('');
-    } catch (err) {
-        console.error(err);
-    }
+                ${u.role !== 'admin' ? `<button class="btn-icon btn-sm-danger" onclick="deleteUser('${u.username}')">✕</button>` : ''}
+            </div>`).join('');
+    } catch (err) { console.error(err); }
 }
 
 async function loadDeptStats() {
@@ -388,12 +565,9 @@ async function loadDeptStats() {
             <div class="stat-row">
                 <span class="stat-dept">${dept.charAt(0).toUpperCase() + dept.slice(1)}</span>
                 <span class="stat-count">${count} docs</span>
-                <div class="stat-bar"><div class="stat-fill" style="width: ${Math.min(count * 2, 100)}%"></div></div>
-            </div>
-        `).join('');
-    } catch (err) {
-        console.error(err);
-    }
+                <div class="stat-bar"><div class="stat-fill" style="width:${Math.min(count * 2, 100)}%"></div></div>
+            </div>`).join('');
+    } catch (err) { console.error(err); }
 }
 
 async function createUser() {
@@ -401,14 +575,10 @@ async function createUser() {
     const fullName = document.getElementById('newFullName').value.trim();
     const password = document.getElementById('newPassword').value;
     const role = document.getElementById('newRole').value;
-
     const checkboxes = document.querySelectorAll('#deptCheckboxes input[type=checkbox]:checked');
     const departments = [...checkboxes].map(cb => cb.value);
 
-    if (!username || !password) {
-        showNotification('Username and password required');
-        return;
-    }
+    if (!username || !password) { showNotification('Username and password required'); return; }
 
     try {
         const res = await fetch(`${API}/auth/register`, {
@@ -425,32 +595,41 @@ async function createUser() {
         document.getElementById('newFullName').value = '';
         document.getElementById('newPassword').value = '';
         loadUsers();
-    } catch (err) {
-        showNotification(err.message);
-    }
+    } catch (err) { showNotification(err.message); }
 }
 
 async function deleteUser(username) {
     if (!confirm(`Delete user '${username}'?`)) return;
     try {
         const res = await fetch(`${API}/admin/users/${username}`, {
-            method: 'DELETE',
-            headers: authHeaders(),
+            method: 'DELETE', headers: authHeaders(),
         });
         if (!res.ok) throw new Error('Failed');
         showNotification(`User '${username}' deleted`);
         loadUsers();
-    } catch (err) {
-        showNotification(err.message);
-    }
+    } catch (err) { showNotification(err.message); }
 }
 
 // =========================================================================
 // UTILS
 // =========================================================================
 
+function scrollToBottom() {
+    const area = document.getElementById('chatArea');
+    area.scrollTop = area.scrollHeight;
+}
+
 function showNotification(msg) {
     notification.textContent = msg;
     notification.classList.remove('hidden');
     setTimeout(() => notification.classList.add('hidden'), 3500);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }

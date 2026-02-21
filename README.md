@@ -1,6 +1,6 @@
 # ClinIQ — Enterprise Healthcare RAG
 
-A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for small-to-mid-size hospitals. Features a **5-node stateful LangGraph pipeline** with healthcare guardrails, **LangSmith deep observability**, **department-scoped vector databases**, **JWT-based RBAC**, **multimodal ingestion** (PDF, DOCX, Excel, Images, DICOM), and **clinician feedback loops** — all deployable as a single-container application.
+A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for small-to-mid-size hospitals. Features a **5-node stateful LangGraph pipeline** with healthcare guardrails, **LangSmith deep observability**, **department-scoped vector databases**, **JWT-based RBAC**, **multimodal ingestion** (PDF, DOCX, Excel, Images, DICOM), **per-response grounding & confidence indicators**, and **clinician feedback loops** — all deployable as a single-container application.
 
 ## 🚀 Key Features
 
@@ -11,6 +11,11 @@ A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for sm
 *   **Stateful Retries**: If no relevant documents are found, the pipeline rewrites the query (expanding medical abbreviations, adding clinical synonyms) and retries — up to 3 attempts before graceful termination
 *   **Role-Aware Generation**: Prompts adapt based on user role (doctors get full clinical detail, researchers get anonymized data)
 *   **Hybrid Search**: Semantic (embeddings) + BM25 for better recall on medical terms/CPT codes
+
+### 🎯 Grounding & Confidence Indicators
+*   **Hallucination Score**: Each API response returns `hallucination_score` (`"yes"` = grounded, `"no"` = unverified) from the LangGraph pipeline
+*   **Confidence Score**: Computed as the average cosine similarity of the top-3 retrieved source chunks (0.0–1.0)
+*   **Visual Panels**: Every AI response renders a **✓ Grounded** (emerald) or **⚠ Unverified** (amber) badge, an animated confidence bar (green/amber/red by tier), and a collapsible source list with per-source similarity scores
 
 ### Deep Observability (LangSmith)
 *   **Full Trace Capture**: Every graph node, LLM call, and retriever invocation is recorded in LangSmith
@@ -36,14 +41,14 @@ A secure, multimodal Retrieval-Augmented Generation (RAG) system designed for sm
 *   **DICOM**: Metadata extraction (study description, modality, body part, institution)
 *   **Table-Aware Chunking**: Excel rows preserve header context
 
-### 💎 Premium Frontend
-*   **Glassmorphism dark-mode design** with ambient lighting effects
-*   **Login modal** with persistent JWT sessions
-*   **Department-scoped uploads**: Select target department before uploading
-*   **Department filter chips**: Choose which departments to search in the chat
-*   **Image preview**: Thumbnail preview for medical image uploads
-*   **Admin panel**: User management and per-department document stats
-*   **Responsive**: Works on desktop and tablet
+### 💎 Claude-Inspired UI
+*   **Teal/emerald healthcare palette** with warm off-white background — clean, content-first aesthetic
+*   **Sidebar layout**: Department filter chips, per-session chat history, user avatar + role badge
+*   **Full-width AI messages**: No chat bubbles for responses — identical reading experience to Claude
+*   **Confidence panel**: Per-response grounding badge + animated confidence bar + collapsible sources
+*   **Knowledge Base drawer**: Slide-in right panel for file uploads (no page switching)
+*   **Empty state**: Suggestion cards for common clinical queries
+*   **Responsive**: Sidebar collapses on mobile/tablet
 
 ## 🏗️ Architecture
 
@@ -83,7 +88,7 @@ graph TD
         Transform --> Retriever
         Grader -->|"No docs + retries exhausted"| Fallback["🏁 Graceful End"]
         Generator --> HalCheck{"🛡️ Hallucination Check"}
-        HalCheck -->|Grounded| Response["✅ Final Answer"]
+        HalCheck -->|Grounded| Response["✅ Final Answer + Confidence"]
         HalCheck -->|Hallucinated| Generator
     end
 
@@ -100,7 +105,7 @@ graph TD
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | HTML5, CSS3 (Glassmorphism), Vanilla JS, Marked.js |
+| **Frontend** | HTML5, CSS3 (Claude-inspired layout), Vanilla JS, Marked.js |
 | **Backend** | Python 3.10+, FastAPI, Uvicorn |
 | **Auth** | PyJWT, passlib (bcrypt), SQLite user store |
 | **Orchestration** | LangChain ≥0.3, LangGraph ≥0.2 (stateful RAG) |
@@ -151,12 +156,34 @@ graph TD
 
 4.  **Run the Server**
     ```bash
-    python main.py
+    uvicorn main:app --reload
     ```
     The UI is at `http://localhost:8000`. Swagger docs at `http://localhost:8000/docs`.
 
 5.  **Login**
     Default admin: `admin` / `admin123` (change in production!)
+
+## 🎯 Confidence & Grounding Indicators
+
+Every AI response includes a confidence panel directly in the chat UI:
+
+| Indicator | Meaning |
+|-----------|---------|
+| **✓ Grounded** (emerald badge) | Hallucination check passed — all claims are supported by retrieved documents |
+| **⚠ Unverified** (amber badge) | Hallucination check flagged possible unsupported claims |
+| **Green bar ≥ 70%** | High confidence — top sources are strongly relevant |
+| **Amber bar 40–69%** | Medium confidence — some relevant context found |
+| **Red bar < 40%** | Low confidence — answer may be based on limited context |
+
+The API also exposes these fields programmatically:
+```json
+{
+  "answer": "...",
+  "hallucination_score": "yes",
+  "confidence_score": 0.82,
+  "sources": [...]
+}
+```
 
 ## 🔑 Configuration
 
@@ -194,7 +221,7 @@ All hospital-specific config lives in `.env`:
 | POST | `/api/v1/auth/register` | Admin | Create user |
 | GET | `/api/v1/auth/me` | ✅ | Current user profile |
 | POST | `/api/v1/ingest` | ✅ | Upload doc to department |
-| POST | `/api/v1/query` | ✅ | Query with dept filtering |
+| POST | `/api/v1/query` | ✅ | Query — returns answer, sources, `hallucination_score`, `confidence_score` |
 | POST | `/api/v1/feedback` | ✅ | Submit clinician feedback to LangSmith |
 | GET | `/api/v1/departments` | ✅ | User's accessible depts |
 | GET | `/api/v1/departments/stats` | Admin | Doc counts per dept |
@@ -207,4 +234,5 @@ All hospital-specific config lives in `.env`:
 *   **PII Protection**: All ingested text is automatically anonymized via Presidio. Only `doctor` role can de-anonymize.
 *   **No PHI Storage by Design**: This system is for Knowledge Base data (policies, SOPs), not patient records.
 *   **Healthcare Guardrails**: Document grading filters irrelevant context; hallucination grading ensures clinical accuracy; generation prompts forbid ungrounded medical advice.
+*   **Grounding Transparency**: Every response exposes its hallucination grade and source confidence score — clinicians can immediately assess AI reliability.
 *   **Audit Trail**: User IDs, query transformations, and full LangSmith traces provide complete traceability for compliance.

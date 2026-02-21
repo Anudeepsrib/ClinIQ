@@ -85,6 +85,8 @@ class QueryResponse(BaseModel):
     answer: str
     sources: List[RetrievalResult]
     departments_searched: List[str] = []
+    hallucination_score: str = "yes"   # "yes" = grounded, "no" = hallucinated
+    confidence_score: float = 0.0      # 0.0–1.0, average similarity of top sources
 
 
 # ---------------------------------------------------------------------------

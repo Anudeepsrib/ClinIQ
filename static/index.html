@@ -6,28 +6,25 @@
     <title>ClinIQ — Enterprise Healthcare RAG</title>
     <meta name="description" content="Secure, multimodal RAG system for hospital policy and clinical guidelines with department-scoped access.">
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-    <div class="background-glob"></div>
-    <div class="background-glob glob-2"></div>
 
     <!-- ============================================================ -->
-    <!-- LOGIN MODAL -->
+    <!-- LOGIN PAGE -->
     <!-- ============================================================ -->
-    <div id="loginModal" class="modal-overlay">
-        <div class="modal-card login-card">
-            <div class="modal-logo">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" class="brand-icon">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <h1>ClinIQ <span class="badge">AI</span></h1>
-                <p class="subtitle">Enterprise Healthcare RAG</p>
+    <div id="loginPage" class="login-page">
+        <div class="login-card">
+            <div class="login-logo">
+                <div class="brand-mark">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                        <path d="M2 17L12 22L22 17"/>
+                        <path d="M2 12L12 17L22 12"/>
+                    </svg>
+                </div>
+                <h1>Clin<span>IQ</span></h1>
+                <p>Enterprise Healthcare RAG</p>
             </div>
             <form id="loginForm" autocomplete="off">
                 <div class="form-group">
@@ -46,159 +43,224 @@
     </div>
 
     <!-- ============================================================ -->
-    <!-- MAIN APP (hidden until login) -->
+    <!-- MAIN APP -->
     <!-- ============================================================ -->
     <div id="mainApp" class="hidden">
-        <!-- Top Nav -->
-        <nav class="top-nav">
-            <div class="nav-left">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" class="brand-icon">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span class="nav-title">ClinIQ <span class="badge">AI</span></span>
-            </div>
-            <div class="nav-right">
-                <div class="user-info">
-                    <span id="navRole" class="role-badge">Admin</span>
-                    <span id="navUser" class="user-name">admin</span>
+
+        <!-- ── SIDEBAR ── -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <!-- Brand -->
+                <div class="brand">
+                    <div class="brand-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                            <path d="M2 17L12 22L22 17"/>
+                            <path d="M2 12L12 17L22 12"/>
+                        </svg>
+                    </div>
+                    <span class="brand-name">Clin<em>IQ</em></span>
                 </div>
-                <button class="btn-ghost" id="adminToggleBtn" onclick="toggleAdminPanel()" title="Admin Panel">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                <!-- New Chat -->
+                <button class="btn-new-chat" onclick="clearChat()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    New Chat
+                </button>
+            </div>
+
+            <!-- Department Filter -->
+            <div class="sidebar-section">
+                <div class="sidebar-label">Search In</div>
+                <div class="dept-chips" id="deptFilter"></div>
+            </div>
+
+            <!-- Chat History -->
+            <div class="chat-history-list" id="chatHistoryList">
+                <!-- populated by JS -->
+            </div>
+
+            <!-- Footer: User info -->
+            <div class="sidebar-footer">
+                <div class="user-pill">
+                    <div class="user-avatar" id="userAvatarLetter">A</div>
+                    <div class="user-meta">
+                        <div class="user-name" id="navUser">admin</div>
+                        <span id="navRole" class="role-badge role-admin">Admin</span>
+                    </div>
+                </div>
+                <button class="btn-icon" id="adminToggleBtn" onclick="toggleAdminPanel()" title="Admin Panel" style="display:none">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
                     </svg>
                 </button>
-                <button class="btn-ghost" onclick="logout()" title="Sign Out">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <button class="btn-icon" onclick="logout()" title="Sign Out">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                         <polyline points="16 17 21 12 16 7"/>
                         <line x1="21" y1="12" x2="9" y2="12"/>
                     </svg>
                 </button>
             </div>
-        </nav>
+        </aside>
 
-        <!-- Admin Panel (collapsible) -->
-        <div id="adminPanel" class="admin-panel hidden">
-            <div class="admin-grid">
-                <!-- Create User -->
-                <div class="card admin-card">
-                    <div class="card-header"><h2>Create User</h2></div>
-                    <div class="card-body">
-                        <div class="form-row">
-                            <input type="text" id="newUsername" placeholder="Username" class="input-sm">
-                            <input type="text" id="newFullName" placeholder="Full Name" class="input-sm">
-                        </div>
-                        <div class="form-row">
-                            <input type="password" id="newPassword" placeholder="Password" class="input-sm">
-                            <select id="newRole" class="input-sm">
-                                <option value="viewer">Viewer</option>
-                                <option value="researcher">Researcher</option>
-                                <option value="technician">Technician</option>
-                                <option value="nurse">Nurse</option>
-                                <option value="doctor">Doctor</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                        </div>
-                        <div class="form-row">
-                            <div id="deptCheckboxes" class="dept-checkboxes"></div>
-                        </div>
-                        <button class="btn-primary btn-sm" onclick="createUser()">Create User</button>
+        <!-- ── MAIN AREA ── -->
+        <div class="main-area">
+
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <div class="model-pill">
+                        <span class="dot"></span>
+                        GPT-4o · RAG
                     </div>
                 </div>
-                <!-- User List -->
-                <div class="card admin-card">
-                    <div class="card-header">
-                        <h2>Users</h2>
-                        <button class="btn-ghost" onclick="loadUsers()">Refresh</button>
-                    </div>
-                    <div class="card-body" id="userList">
-                        <p class="text-muted">Loading...</p>
-                    </div>
+                <div class="top-bar-right">
+                    <button class="btn-ghost" onclick="toggleKbPanel()">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        Knowledge Base
+                    </button>
                 </div>
-                <!-- Dept Stats -->
-                <div class="card admin-card">
-                    <div class="card-header"><h2>Department Stats</h2></div>
-                    <div class="card-body" id="deptStats">
-                        <p class="text-muted">Loading...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
+            </header>
 
-        <!-- Main Content -->
-        <main class="container">
-            <div class="grid-layout">
-                <!-- Knowledge Base Section -->
-                <section class="card upload-card">
-                    <div class="card-header">
-                        <h2>Knowledge Base</h2>
-                        <span class="status-indicator" id="dbStatus">Ready</span>
-                    </div>
-                    <!-- Department Selector for Upload -->
-                    <div class="dept-selector">
-                        <label>Upload to Department:</label>
-                        <select id="uploadDept" class="input-sm dept-select">
-                            <!-- populated dynamically -->
-                        </select>
-                    </div>
-                    <div class="upload-zone" id="dropZone">
-                        <div class="upload-icon">
-                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="17 8 12 3 7 8"/>
-                                <line x1="12" y1="3" x2="12" y2="15"/>
-                            </svg>
+            <!-- Admin Panel -->
+            <div id="adminPanel" class="admin-panel hidden">
+                <div class="admin-inner">
+                    <div class="admin-grid">
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                Create User
+                            </div>
+                            <div class="admin-card-body">
+                                <div class="form-row">
+                                    <input type="text" id="newUsername" placeholder="Username" class="input-sm">
+                                    <input type="text" id="newFullName" placeholder="Full Name" class="input-sm">
+                                </div>
+                                <div class="form-row">
+                                    <input type="password" id="newPassword" placeholder="Password" class="input-sm">
+                                    <select id="newRole" class="input-sm">
+                                        <option value="viewer">Viewer</option>
+                                        <option value="researcher">Researcher</option>
+                                        <option value="technician">Technician</option>
+                                        <option value="nurse">Nurse</option>
+                                        <option value="doctor">Doctor</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div class="form-row">
+                                    <div id="deptCheckboxes" class="dept-checkboxes"></div>
+                                </div>
+                                <button class="btn-primary btn-sm" onclick="createUser()">Create User</button>
+                            </div>
                         </div>
-                        <p>Drag & drop policies, coverage tables, or medical images</p>
-                        <p class="file-types">PDF, DOCX, XLSX, PNG, JPG, TIFF, DICOM</p>
-                        <input type="file" id="fileInput" hidden accept=".pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.tiff,.bmp,.dcm">
-                        <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">Select File</button>
-                    </div>
-                    <!-- Image Preview -->
-                    <div id="imagePreview" class="image-preview hidden">
-                        <img id="previewImg" src="" alt="Preview">
-                        <span id="previewName"></span>
-                    </div>
-                    <div id="uploadList" class="file-list"></div>
-                </section>
-
-                <!-- Chat Interface -->
-                <section class="card chat-card">
-                    <div class="card-header">
-                        <h2>Policy Assistant</h2>
-                        <button class="btn-ghost" onclick="clearChat()">Clear</button>
-                    </div>
-                    <!-- Department Filter Chips -->
-                    <div class="dept-filter" id="deptFilter">
-                        <!-- populated dynamically -->
-                    </div>
-                    <div class="chat-history" id="chatHistory">
-                        <div class="message system">
-                            <div class="avatar">AI</div>
-                            <div class="content">
-                                Hello! I can answer questions based on your department's policy documents. Select departments above to filter your search scope.
+                        <div class="admin-card">
+                            <div class="admin-card-header">
+                                Users
+                                <button class="btn-ghost btn-sm" onclick="loadUsers()">Refresh</button>
+                            </div>
+                            <div class="admin-card-body" id="userList">
+                                <p style="color:var(--text-muted);font-size:0.8rem;">Loading...</p>
+                            </div>
+                        </div>
+                        <div class="admin-card">
+                            <div class="admin-card-header">Department Stats</div>
+                            <div class="admin-card-body" id="deptStats">
+                                <p style="color:var(--text-muted);font-size:0.8rem;">Loading...</p>
                             </div>
                         </div>
                     </div>
-                    <div class="chat-input-area">
-                        <div class="input-wrapper">
-                            <textarea id="questionInput" placeholder="Ask about coverage, prior auth, or coding..." rows="1" onkeydown="handleEnter(event)"></textarea>
-                            <button class="btn-primary" onclick="sendQuery()" id="sendBtn">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="22" y1="2" x2="11" y2="13"/>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </section>
+                </div>
             </div>
-        </main>
-    </div>
 
-    <div id="notification" class="notification hidden">Notification</div>
+            <!-- Chat Area -->
+            <div class="chat-area" id="chatArea">
+                <!-- Empty state -->
+                <div class="chat-empty" id="chatEmpty">
+                    <div style="width:56px;height:56px;background:linear-gradient(135deg,var(--primary),var(--emerald));border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;box-shadow:0 4px 16px var(--primary-glow);">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z"/>
+                            <path d="M2 17L12 22L22 17"/>
+                            <path d="M2 12L12 17L22 12"/>
+                        </svg>
+                    </div>
+                    <h2>How can I help you today?</h2>
+                    <p>Ask me anything about your department's clinical guidelines, hospital policies, coverage tables, or prior authorization requirements.</p>
+                    <div class="suggestion-grid">
+                        <button class="suggestion-card" onclick="usesuggestion(this)">What are the prior auth requirements for MRI scans?</button>
+                        <button class="suggestion-card" onclick="usesuggestion(this)">Summarize the infection control policy for ICU.</button>
+                        <button class="suggestion-card" onclick="usesuggestion(this)">What medications require dual sign-off?</button>
+                        <button class="suggestion-card" onclick="usesuggestion(this)">Show coverage criteria for cardiac stenting.</button>
+                    </div>
+                </div>
+
+                <!-- Messages -->
+                <div class="chat-messages" id="chatMessages"></div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-inner">
+                    <div class="input-box">
+                        <textarea id="questionInput" placeholder="Ask about coverage, prior auth, clinical guidelines…" rows="1" onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
+                        <button class="send-btn" onclick="sendQuery()" id="sendBtn" title="Send (Enter)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <p class="input-hint">ClinIQ uses retrieval-augmented generation. Always verify critical clinical decisions.</p>
+                </div>
+            </div>
+        </div><!-- /main-area -->
+
+        <!-- ── KNOWLEDGE BASE DRAWER ── -->
+        <aside class="kb-panel" id="kbPanel">
+            <div class="kb-panel-header">
+                <span>Knowledge Base</span>
+                <div style="display:flex;align-items:center;gap:0.5rem;">
+                    <span class="status-indicator" id="dbStatus">
+                        <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="#10B981"/></svg>
+                        Ready
+                    </span>
+                    <button class="btn-icon" onclick="toggleKbPanel()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="kb-panel-body">
+                <div class="dept-selector">
+                    <label>Upload to:</label>
+                    <select id="uploadDept" class="dept-select"></select>
+                </div>
+                <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+                    <div class="upload-icon">
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <p>Drag & drop policies, coverage tables, or medical images</p>
+                    <p class="file-types">PDF, DOCX, XLSX, PNG, JPG, TIFF, DICOM</p>
+                    <input type="file" id="fileInput" hidden accept=".pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.tiff,.bmp,.dcm">
+                    <button class="btn-secondary" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Select File</button>
+                </div>
+                <div id="imagePreview" class="image-preview hidden">
+                    <img id="previewImg" src="" alt="Preview">
+                    <span id="previewName"></span>
+                </div>
+                <div id="uploadList" class="file-list"></div>
+            </div>
+        </aside>
+
+    </div><!-- /mainApp -->
+
+    <div id="notification" class="notification hidden"></div>
     <script src="/static/js/script.js"></script>
 </body>
 </html>

@@ -219,6 +219,11 @@ async def query_documents(
             "No relevant documents found in the departments you have access to.",
         )
         docs = result.get("documents", [])
+        hallucination_score = result.get("hallucination_score", "yes")
+
+        # Confidence = average similarity score of top-3 retrieved sources
+        top_scores = [d.score for d in docs[:3] if hasattr(d, "score") and d.score is not None]
+        confidence_score = round(sum(top_scores) / max(len(top_scores), 1), 3) if top_scores else 0.0
 
         # De-anonymize for doctors
         if user["role"] == "doctor":
@@ -231,6 +236,8 @@ async def query_documents(
             answer=answer,
             sources=docs,
             departments_searched=search_depts,
+            hallucination_score=hallucination_score,
+            confidence_score=confidence_score,
         )
     except HTTPException:
         raise
