@@ -24,19 +24,6 @@ When building for healthcare, "good enough" AI is dangerous. You need absolute, 
 
 ---
 
-## 💻 For Engineering Leaders & Recruiters
-
-**The Architecture:**
-This repository demonstrates full-stack velocity merging advanced backend orchestration with accessible, modern frontend execution.
-
-* **Backend Orchestration (Python/FastAPI):** A 6-Node Stateful LangGraph pipeline. It doesn't just guess ambiguous queries—it short-circuits to return structured clarification options to the UI.
-* **Frontend Execution (Next.js 14 / Tailwind v4):** A custom, pure-CSS "Medical Gold" branded UI enforcing strict 2px geometry (no SaaS clichés or bento grids). 
-* **Deep Observability:** LangSmith telemetry capturing `user_role` and `department` traces for continuous clinical auditing.
-
-**If your team needs a Senior Architect / Product Engineer who operates at this velocity—building secure, polished, and complex state machines—this repo is my proof of work.**
-
----
-
 ## 🚀 Key Features
 
 ### 🤖 Stateful RAG Pipeline (LangGraph)
