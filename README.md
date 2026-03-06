@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="frontend/public/logo.png" alt="ClinIQ Logo" width="120" />
-  <h1>ClinIQ — Enterprise Healthcare RAG & Clinical UI</h1>
+  <img src="frontend/public/logo.png" alt="ClinIQ Logo" width="200" />
+  <h1>ClinIQ : Enterprise Healthcare RAG & Clinical UI</h1>
   <p><em>A production-ready, HIPAA-compliant AI knowledge system built for velocity, safety, and scale.</em></p>
 </div>
 
