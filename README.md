@@ -40,6 +40,17 @@ When building for healthcare, "good enough" AI is dangerous. You need absolute, 
 *   **Inline PHI Masking**: Dynamic UI redaction blocks for unauthorized data.
 *   **Interactive Clarification Cards**: Renders inline buttons for RAG ambiguities.
 
+<div align="center">
+  <img src="frontend/public/assets/01_Initial_Interface.png" alt="Clinical UI Interface" width="800" />
+</div>
+
+<br/>
+
+<div align="center">
+  <img src="frontend/public/assets/03_RBAC_Inline_Masking.png" alt="RBAC Inline Masking Feature" width="800" />
+  <p><em>Demonstrating dynamic mid-sentence PHI Redaction for unauthorized medical staff.</em></p>
+</div>
+
 ---
 
 ## 🏗️ System Architecture
