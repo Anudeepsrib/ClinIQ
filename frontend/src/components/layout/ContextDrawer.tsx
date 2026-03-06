@@ -25,7 +25,7 @@ export function ContextDrawer() {
                 {activeFocus ? (
                     <div className="bg-slate-50 border border-border p-3 rounded-none relative overflow-hidden group">
                         {/* Strict geometric accent mark */}
-                        <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
+                        <div className="absolute top-0 left-0 w-1 h-full bg-gold-500" />
 
                         <div className="flex items-start justify-between">
                             <div>

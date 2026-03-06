@@ -22,6 +22,11 @@ const config: Config = {
                     500: "#00b4d8",
                     600: "#0096c7",
                 },
+                gold: {
+                    400: "#fae178", // Lighter variant
+                    500: "#f8d858", // Base logo color RGB: 248, 216, 88
+                    600: "#d6b638", // Darker variant for hover
+                },
                 red: {
                     500: "#ef233c",
                     600: "#d90429",

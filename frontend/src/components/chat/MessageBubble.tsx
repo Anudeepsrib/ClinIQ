@@ -40,8 +40,8 @@ export function MessageBubble({ message }: { message: Message }) {
             >
                 {/* Avatar Square */}
                 <div className={`w-8 h-8 shrink-0 flex items-center justify-center border ${isBot
-                        ? "bg-navy-900 border-navy-800 text-cyan-400"
-                        : "bg-slate-100 border-slate-200 text-slate-500"
+                    ? "bg-navy-900 border-navy-800 text-gold-400"
+                    : "bg-slate-100 border-slate-200 text-slate-500"
                     }`}>
                     {isBot ? <ShieldCheck className="w-4 h-4" /> : <User className="w-4 h-4" />}
                 </div>
@@ -49,8 +49,8 @@ export function MessageBubble({ message }: { message: Message }) {
                 {/* Message Container */}
                 <div className={`flex flex-col gap-2`}>
                     <div className={`p-4 border shadow-sm text-sm leading-relaxed ${isBot
-                            ? "bg-white border-slate-200 text-navy-900 shadow-slate-200/50"
-                            : "bg-slate-50 border-slate-200 text-navy-800"
+                        ? "bg-white border-slate-200 text-navy-900 shadow-slate-200/50"
+                        : "bg-slate-50 border-slate-200 text-navy-800"
                         }`}>
                         <div className="whitespace-pre-wrap font-sans">
                             {renderContent(message.content)}
@@ -76,7 +76,7 @@ export function MessageBubble({ message }: { message: Message }) {
                             {message.source && (
                                 <>
                                     <span className="text-slate-300">|</span>
-                                    <span className="flex items-center gap-1 text-navy-600 hover:text-cyan-600 cursor-pointer transition-colors">
+                                    <span className="flex items-center gap-1 text-navy-600 hover:text-gold-600 cursor-pointer transition-colors">
                                         <FileText className="w-3 h-3" />
                                         Source: {message.source}
                                     </span>
@@ -87,8 +87,8 @@ export function MessageBubble({ message }: { message: Message }) {
                                 <>
                                     <span className="text-slate-300">|</span>
                                     <span className="flex items-center gap-1">
-                                        <div className={`w-1.5 h-1.5 rounded-none ${message.confidence === "High" ? "bg-cyan-500" :
-                                                message.confidence === "Medium" ? "bg-yellow-500" : "bg-red-500"
+                                        <div className={`w-1.5 h-1.5 rounded-none ${message.confidence === "High" ? "bg-gold-500" :
+                                            message.confidence === "Medium" ? "bg-yellow-500" : "bg-red-500"
                                             }`}
                                         />
                                         Conf: {message.confidence}

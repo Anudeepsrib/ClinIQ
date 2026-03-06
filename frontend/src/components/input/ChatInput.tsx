@@ -25,7 +25,7 @@ export function ChatInput() {
     };
 
     return (
-        <div className="w-full max-w-4xl mx-auto bg-white border border-border p-3 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] focus-within:border-cyan-500 focus-within:ring-1 focus-within:ring-cyan-500 transition-all">
+        <div className="w-full max-w-4xl mx-auto bg-white border border-border p-3 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.1)] focus-within:border-gold-500 focus-within:ring-1 focus-within:ring-gold-500 transition-all">
             <form onSubmit={handleSubmit} className="flex flex-col gap-2">
                 <textarea
                     value={input}
@@ -47,7 +47,7 @@ export function ChatInput() {
                     <button
                         type="submit"
                         disabled={!input.trim() || isLoading}
-                        className="group flex items-center justify-center bg-navy-900 hover:bg-cyan-600 disabled:bg-slate-200 text-white p-3 rounded-none transition-colors"
+                        className="group flex items-center justify-center bg-navy-900 hover:bg-gold-600 disabled:bg-slate-200 text-white p-3 rounded-none transition-colors"
                         title="Send Query (Enter)"
                     >
                         <Send className="w-4 h-4 translate-y-px group-hover:translate-x-0.5 transition-transform" />

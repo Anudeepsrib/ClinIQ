@@ -39,9 +39,9 @@ export function ChatStream() {
 
                 {isLoading && (
                     <div className="flex space-x-2 p-4 items-center">
-                        <div className="w-1.5 h-1.5 bg-cyan-500 rounded-none animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <div className="w-1.5 h-1.5 bg-cyan-500 rounded-none animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <div className="w-1.5 h-1.5 bg-cyan-500 rounded-none animate-bounce" style={{ animationDelay: "300ms" }} />
+                        <div className="w-1.5 h-1.5 bg-gold-500 rounded-none animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <div className="w-1.5 h-1.5 bg-gold-500 rounded-none animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <div className="w-1.5 h-1.5 bg-gold-500 rounded-none animate-bounce" style={{ animationDelay: "300ms" }} />
                         <span className="ml-2 text-xs font-mono text-slate-400 uppercase tracking-widest">
                             Retrieving context...
                         </span>

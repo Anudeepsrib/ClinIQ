@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -32,21 +33,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${inter.variable} ${interDisplay.variable} ${robotoMono.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
       >
         {/* Global Header */}
         <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-white shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-6 h-6 bg-red-600 rotate-45" /> {/* Placeholder Sharp Logo */}
+            <Image src="/logo.png" alt="Clinical Assistant Logo" width={32} height={32} />
             <h1 className="font-display font-bold text-navy-900 tracking-tight">
               City General Hospital
             </h1>
           </div>
           <div className="flex items-center gap-4 text-sm font-mono text-slate-500">
             <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-none bg-cyan-500 animate-pulse" />
+              <span className="w-2 h-2 rounded-none bg-gold-500 animate-pulse" />
               Secure Session
             </span>
             <span className="px-2 py-1 bg-navy-900 text-white font-bold text-xs uppercase tracking-wider">
