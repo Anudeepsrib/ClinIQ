@@ -63,3 +63,6 @@ next-env.d.ts
 # --- Demo Automation ---
 demo-automation/*.png
 build_output.txt
+
+# --- AI Workflows ---
+color_extractor.py

@@ -78,7 +78,7 @@ export function PushToTalk({ onRecordingComplete }: PushToTalkProps) {
         <div className="relative flex items-center justify-center">
             {/* Active Pulse Ring */}
             {isRecording && (
-                <span className="absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75 animate-ping" />
+                <span className="absolute inline-flex h-full w-full rounded-full bg-crimson-500 opacity-75 animate-ping" />
             )}
 
             <button
@@ -89,8 +89,8 @@ export function PushToTalk({ onRecordingComplete }: PushToTalkProps) {
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
                 className={`relative z-10 w-10 h-10 flex items-center justify-center rounded-none shadow-sm transition-colors border ${isRecording
-                    ? "bg-red-600 border-red-700 text-white"
-                    : "bg-white border-slate-200 text-slate-500 hover:text-navy-900 hover:bg-slate-50"
+                    ? "bg-crimson-600 border-crimson-700 text-white"
+                    : "bg-white border-slate-200 text-slate-500 hover:text-black hover:bg-slate-50"
                     }`}
                 aria-label="Push to Talk"
             >

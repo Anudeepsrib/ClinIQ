@@ -1,59 +1,91 @@
 <div align="center">
   <img src="frontend/public/logo.png" alt="ClinIQ Logo" width="400" />
-  <h1>ClinIQ : Enterprise Healthcare RAG & Clinical UI</h1>
-  <p><em>A production-ready, HIPAA-compliant AI knowledge system built for velocity, safety, and scale.</em></p>
 </div>
 
----
+# ClinIQ
 
-## 🌟 The Product Vision
+### Enterprise Healthcare RAG & Clinical UI
+A production-ready, HIPAA-compliant AI knowledge system built for velocity, safety, and scale. Designed specifically to bridge the gap between deep technical RAG orchestration and a highly polished, clinical-grade user experience for small-to-mid-size hospitals.
 
-ClinIQ isn't just a wrapper around an LLM; it's a **secure, stateful clinical reasoning engine**. Designed for small-to-mid-size hospitals, ClinIQ bridges the gap between deep technical RAG orchestration and a highly polished, clinical-grade user experience. 
+[Documentation](#) • [Quick Start](#quick-start) • [GitHub](https://github.com/anudeepsrib/ClinIQ)
 
-Whether you are a **Hospital Administrator** looking to streamline protocols, a **Clinician** needing rapid, grounded answers, or an **Engineering Leader** evaluating architectural rigor, ClinIQ demonstrates how modern AI ("vibe coding" executed with architectural discipline) delivers immediate enterprise value.
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)](#) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](#) [![Version](https://img.shields.io/badge/version-1.0.0--beta-blue.svg)](#) [![HIPAA](https://img.shields.io/badge/compliance-HIPAA--ready-purple.svg)](#)
 
----
+"When building for healthcare, 'good enough' AI is dangerous. You need absolute, verifiable control."
 
-## 🏥 For Clinical & Business Leaders
-
-**Why ClinIQ?**
-When building for healthcare, "good enough" AI is dangerous. You need absolute, verifiable control.
-*   **Zero Hallucination Tolerance:** Every answer is hard-checked against retrieved medical documents. If an answer isn't grounded, it's flagged or blocked.
-*   **Role-Based Access Control (RBAC) & Data Redaction:** A built-in visual redaction engine hides PHI (Protected Health Information) mid-sentence if a user lacks the clearance (e.g., Doctors see vitals; billing admins see `[REDACTED]`).
-*   **A "Clinical Precision" Interface:** Designed for noisy hospital wards. Features an asymmetric 70/30 layout for context retention and a custom **Web Audio Push-to-Talk** system requiring a continuous hold to prevent ambient PHI audio leaks.
+ClinIQ is built and maintained by [Anudeep](https://github.com/anudeepsrib).
+[Website](https://github.com/anudeepsrib) • [LinkedIn](https://linkedin.com/in/anudeepsrib)
 
 ---
 
-## 🚀 Key Features
+## Highlights
 
-### 🤖 Stateful RAG Pipeline (LangGraph)
-*   **Clarification Node**: Detects ambiguous clinical queries using a structured LLM before retrieval. Short-circuits the pipeline to ask specific follow-up questions.
-*   **Document & Hallucination Graders**: LLM-based relevance checks tuned for clinical terminology and patient safety.
-*   **Stateful Retries**: If no relevant documents are found, the pipeline rewrites the query (expanding medical abbreviations) and retries.
+- **[Stateful RAG Pipeline](#)** — Clarification Node prevents bad answers; LLM-based Document Graders ensure relevance; automatic abbreviation expansion.
+- **[Zero Hallucination Tolerance](#)** — Every answer is hard-checked against retrieved medical documents. Un-grounded responses are explicitly blocked.
+- **[Inline PHI Masking](#)** — Built-in visual redaction engine hides Protected Health Information mid-sentence based on JWT role.
+- **[Clinical Precision Interface](#)** — Asymmetric 80/20 Context Grid designed for noisy hospital wards and maximum context retention.
+- **[Department-Scoped DBs](#)** — Strict data isolation via JWT-based Role Hierarchies (`Admin` → `Doctor` → `Nurse` → `Technician`) and ChromaDB multi-collections.
 
-### 🔐 Authentication & Access Control
-*   **JWT-Based Authentication & Role Hierarchy**: `Admin` → `Doctor` → `Nurse` → `Technician`.
-*   **Department-Scoped Vector DBs**: Data isolation enforced at both the API and ChromaDB layer.
+---
 
-### 💎 Clinical-Grade UI (Next.js)
-*   **Asymmetric 70/30 Layout**: Context Drawer (left) and Primary Chat Stream (right).
-*   **Inline PHI Masking**: Dynamic UI redaction blocks for unauthorized data.
-*   **Interactive Clarification Cards**: Renders inline buttons for RAG ambiguities.
+## Interface Overview
 
 <div align="center">
-  <img src="frontend/public/assets/01_Initial_Interface.png" alt="Clinical UI Interface" width="800" />
+  <img src="frontend/public/assets/01_Initial_Interface.png" alt="Clinical UI Interface" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+  <p><em>The primary Asymmetric 80/20 Clinical Layout.</em></p>
 </div>
 
 <br/>
 
 <div align="center">
-  <img src="frontend/public/assets/03_RBAC_Inline_Masking.png" alt="RBAC Inline Masking Feature" width="800" />
+  <img src="frontend/public/assets/03_RBAC_Inline_Masking.png" alt="RBAC Inline Masking Feature" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
   <p><em>Demonstrating dynamic mid-sentence PHI Redaction for unauthorized medical staff.</em></p>
 </div>
 
 ---
 
-## 🏗️ System Architecture
+## How it works (short)
+
+```text
+  React Next.js (80/20 Clinical Grid) / Web Audio Push-to-Talk
+                               │
+                               ▼
+                ┌───────────────────────────────┐
+                │          FastAPI Server       │
+                │        (Authentication)       │
+                └──────────────┬────────────────┘
+                               │
+            ├─ Dept DBs (Chroma) ├─ Auth & RBAC (JWT)
+                               │
+                               ▼
+                ┌───────────────────────────────┐
+                │        Stateful RAG           │
+                │         (LangGraph)           │
+                └───────────────────────────────┘
+                               │
+            ├─ Clarify ├─ Retrieve ├─ Grade ├─ Generate
+```
+
+## <a name="quick-start"></a> Quick Start
+
+### 1. Start the Backend
+```bash
+cp .env.example .env
+# Ensure OPENAI_API_KEY is configured in .env
+uvicorn main:app --reload
+```
+
+### 2. Start the Frontend
+```bash
+cd frontend
+npm install
+npm run dev
+```
+UI available at `http://localhost:3000`.
+
+---
+
+## <a name="architecture"></a> Deep Dive: Architecture
 
 ```mermaid
 graph TD
@@ -84,32 +116,13 @@ graph TD
     VectorDBs <--> Retriever
 ```
 
-## 🛠️ Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React, Next.js 14 (App Router), Tailwind CSS v4, Zustand |
-| **Backend** | Python 3.10+, FastAPI, Uvicorn |
-| **Orchestration** | LangChain ≥0.3, LangGraph ≥0.2 (stateful RAG) |
-| **Observability** | LangSmith ≥0.2 (tracing, feedback loops) |
-| **Vector DB** | ChromaDB ≥0.5 (multi-collection) |
-
-## 🏃‍♂️ How to Run Locally
-
-### 1. Start the Backend API
-```bash
-cp .env.example .env
-# Add OPENAI_API_KEY
-uvicorn main:app --reload
-```
-
-### 2. Start the Frontend UI
-```bash
-cd frontend
-npm install
-npm run dev
-```
-UI available at `http://localhost:3000`.
-
 ---
-*Built for the future of healthcare. Ready to ship.*
+
+## 🛠️ Built With
+
+- **Frontend:** React, Next.js 14, Tailwind CSS v4, Zustand
+- **Backend:** Python 3.10+, FastAPI, Uvicorn
+- **Orchestration:** LangChain ≥0.3, LangGraph ≥0.2
+- **Vector DB:** ChromaDB ≥0.5
+
+*Built for the future of healthcare. Designed with architectural discipline.*

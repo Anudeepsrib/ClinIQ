@@ -17,10 +17,10 @@ export function InlineMask({ reason = "Clearance Required" }: InlineMaskProps) {
             <span className="opacity-0">▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒</span>
 
             {/* Strict Square Tooltip */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-navy-900 text-white text-xs p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 flex items-start gap-2 border border-navy-700">
-                <ShieldAlert className="w-4 h-4 text-red-500 shrink-0" />
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-max max-w-xs bg-black text-white text-xs p-2 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 flex items-start gap-2 border border-slate-800">
+                <ShieldAlert className="w-4 h-4 text-crimson-600 shrink-0" />
                 <span className="font-mono leading-relaxed">
-                    <span className="text-red-400 font-bold block mb-1">REDACTED DATA</span>
+                    <span className="text-crimson-500 font-bold block mb-1">REDACTED DATA</span>
                     {reason}
                 </span>
             </div>

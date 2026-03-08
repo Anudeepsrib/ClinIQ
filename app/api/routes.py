@@ -5,12 +5,19 @@ API routes — Auth, ingestion, and query endpoints with RBAC enforcement.
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
 from typing import List, Optional
 from app.schemas.models import (
-    IngestResponse, QueryRequest, QueryResponse,
+    IngestResponse, UpsertResponse, DocumentInfo, DocumentHistory,
+    QueryRequest, QueryResponse,
     LoginRequest, TokenResponse, UserCreate, UserOut,
     FeedbackRequest, FeedbackResponse,
 )
-from app.ingestion.loader_factory import LoaderFactory
-from app.retrieval.vector_store import vector_store
+from app.schemas.chat_models import (
+    ChatMessageOut, SessionSummaryOut, CreateSessionRequest,
+    CreateSessionResponse, ChatSearchRequest
+)
+from app.ingestion.upsert_pipeline import upsert_document, delete_document as upsert_delete_document
+from app.ingestion.document_registry import document_registry
+from app.retrieval.azure_search_store import azure_search_store
+from app.chat.chat_history_store import chat_history_store
 from app.retrieval.graph import app_graph
 from app.core.limiter import limiter
 from app.core.config import settings
@@ -19,7 +26,6 @@ from app.security.rbac import get_current_user, require_role, get_user_departmen
 from app.observability.tracing import build_langsmith_config, create_feedback as ls_create_feedback
 
 router = APIRouter()
-loader_factory = LoaderFactory()
 
 
 # =========================================================================
@@ -106,14 +112,14 @@ async def get_departments(user: dict = Depends(get_current_user)):
 @router.get("/departments/stats")
 async def get_department_stats(admin: dict = Depends(require_role("admin"))):
     """Admin-only: document counts per department."""
-    return vector_store.get_collection_stats()
+    return azure_search_store.get_collection_stats()
 
 
 # =========================================================================
 # Ingestion
 # =========================================================================
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=UpsertResponse)
 @limiter.limit("10/minute")
 async def ingest_document(
     request: Request,
@@ -124,6 +130,7 @@ async def ingest_document(
     """
     Upload a document to a specific department's knowledge base.
     Requires the user to have access to the target department.
+    Routes through the intelligent upsert pipeline.
     """
     department = department.lower()
 
@@ -143,26 +150,51 @@ async def ingest_document(
 
     try:
         content = await file.read()
-        chunks = await loader_factory.process_file(content, file.filename, file.content_type)
-
-        # Determine modality from the first chunk
-        modality = chunks[0].modality if chunks else "text"
-
-        # Route to department collection
-        vector_store.add_chunks(chunks, department=department)
-
-        return IngestResponse(
-            file_id=file.filename,
+        username = user["username"]
+        result = await upsert_document(
+            file_bytes=content,
             filename=file.filename,
+            content_type=file.content_type,
             department=department,
-            modality=modality,
-            chunks_count=len(chunks),
+            user=username
         )
+        return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         print(f"Error ingesting file: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/documents/{department}", response_model=List[DocumentInfo])
+async def list_documents(department: str, user: dict = Depends(get_current_user)):
+    """List active documents in a department (RBAC enforced)."""
+    department = department.lower()
+    allowed = get_user_departments(user)
+    if department not in allowed:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    return document_registry.list_documents(department)
+
+
+@router.delete("/documents/{department}/{filename}")
+async def delete_document_ep(department: str, filename: str, admin: dict = Depends(require_role("admin"))):
+    """Admin-only: soft-delete a document and purge vectors."""
+    success = await upsert_delete_document(filename, department)
+    if not success:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"status": "deleted", "filename": filename, "department": department}
+
+
+@router.get("/documents/{department}/{filename}/history", response_model=DocumentHistory)
+async def get_document_history(department: str, filename: str, user: dict = Depends(get_current_user)):
+    """Get full version history (RBAC enforced)."""
+    department = department.lower()
+    allowed = get_user_departments(user)
+    if department not in allowed:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    doc_id = document_registry.build_doc_id(department, filename)
+    history = document_registry.get_history(doc_id)
+    return {"history": history}
 
 
 # =========================================================================
@@ -249,6 +281,26 @@ async def query_documents(
             for doc in docs:
                 doc.content = pii_manager.deanonymize(doc.content)
 
+        # ── Append to Chat History if session_id provided ──
+        if request_body.session_id:
+            try:
+                chat_history_store.append_message(
+                    session_id=request_body.session_id,
+                    user_id=user["username"],
+                    role="user",
+                    content=request_body.question,
+                    department=search_depts[0] if search_depts else "general"
+                )
+                chat_history_store.append_message(
+                    session_id=request_body.session_id,
+                    user_id=user["username"],
+                    role="bot",
+                    content=answer,
+                    department=search_depts[0] if search_depts else "general"
+                )
+            except Exception as hist_err:
+                print(f"Error appending chat history: {hist_err}")
+
         return QueryResponse(
             answer=answer,
             sources=docs,
@@ -296,3 +348,48 @@ async def submit_feedback(
         run_id=body.run_id,
         key=body.key,
     )
+
+# =========================================================================
+# Chat History
+# =========================================================================
+
+@router.post("/chat/sessions", response_model=CreateSessionResponse)
+async def create_chat_session(req: CreateSessionRequest, user: dict = Depends(get_current_user)):
+    """Create a new chat session."""
+    session_id = chat_history_store.create_session(user["username"], req.department)
+    return {"session_id": session_id, "status": "created"}
+
+
+@router.get("/chat/sessions", response_model=List[SessionSummaryOut])
+async def list_chat_sessions(user: dict = Depends(get_current_user)):
+    """List only the current user's sessions."""
+    return [s.to_dict() for s in chat_history_store.list_sessions(user["username"])]
+
+
+@router.get("/chat/sessions/{session_id}", response_model=List[ChatMessageOut])
+async def get_chat_session(session_id: str, user: dict = Depends(get_current_user)):
+    """Get conversation only if owned by current user."""
+    if user["role"] == "admin":
+        messages = chat_history_store.admin_get_session(session_id)
+    else:
+        messages = chat_history_store.get_session(session_id, user["username"])
+    return [m.to_dict() for m in messages]
+
+
+@router.delete("/chat/sessions/{session_id}")
+async def delete_chat_session(session_id: str, user: dict = Depends(get_current_user)):
+    """Delete session if owned by user or if admin (RBAC)."""
+    if user["role"] == "admin":
+        success = chat_history_store.admin_delete_session(session_id)
+    else:
+        success = chat_history_store.delete_session(session_id, user["username"])
+    if not success:
+        raise HTTPException(status_code=404, detail="Session not found or forbidden")
+    return {"status": "deleted", "session_id": session_id}
+
+
+@router.post("/chat/search", response_model=List[ChatMessageOut])
+async def search_chat_history(req: ChatSearchRequest, user: dict = Depends(get_current_user)):
+    """Semantic search scoped to current user's history only."""
+    results = chat_history_store.search_history(user["username"], req.query, req.k)
+    return [r.to_dict() for r in results]

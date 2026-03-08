@@ -13,6 +13,16 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     LLM_MODEL: str = "gpt-4o"
 
+    # --- Azure AI Search ---
+    AZURE_SEARCH_ENDPOINT: str = ""
+    AZURE_SEARCH_API_KEY: str = ""
+    AZURE_SEARCH_INDEX_PREFIX: str = "cliniq-dept"
+
+    # --- Azure ChromaDB (Chat History) ---
+    AZURE_CHROMA_HOST: str = "localhost"
+    AZURE_CHROMA_PORT: int = 8000
+    AZURE_CHROMA_AUTH_TOKEN: str = ""
+
     # --- JWT / Auth ---
     JWT_SECRET_KEY: str = "change-me-in-production-use-openssl-rand"
     JWT_ALGORITHM: str = "HS256"

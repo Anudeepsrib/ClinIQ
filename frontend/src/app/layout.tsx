@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import { Inter, Roboto_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+import { Source_Sans_3, Lexend, Roboto_Mono } from "next/font/google";
+
+const sourceSans = Source_Sans_3({
+  variable: "--font-source-sans",
   subsets: ["latin"],
   display: "swap",
 });
 
-const interDisplay = Inter({
-  variable: "--font-inter-display",
+const lexend = Lexend({
+  variable: "--font-lexend",
   subsets: ["latin"],
   display: "swap",
-  weight: ["600", "700", "800"],
+  weight: ["300", "400", "500", "600", "700"],
 });
 
 const robotoMono = Roboto_Mono({
@@ -36,35 +36,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${inter.variable} ${interDisplay.variable} ${robotoMono.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
+        className={`${sourceSans.variable} ${lexend.variable} ${robotoMono.variable} antialiased bg-background text-foreground min-h-screen flex flex-col font-sans`}
       >
-        {/* Global Header */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-6 bg-white shrink-0">
-          <div className="flex items-center gap-4">
-            <Image src="/logo.png" alt="Clinical Assistant Logo" width={32} height={32} />
-            <h1 className="font-display font-bold text-navy-900 tracking-tight">
-              City General Hospital
-            </h1>
-          </div>
-          <div className="flex items-center gap-4 text-sm font-mono text-slate-500">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-none bg-gold-500 animate-pulse" />
-              Secure Session
-            </span>
-            <span className="px-2 py-1 bg-navy-900 text-white font-bold text-xs uppercase tracking-wider">
-              Dr. House (Cardiology)
-            </span>
-          </div>
-        </header>
-
-        {/* Main 70/30 Layout Structure */}
-        <main className="flex-1 flex overflow-hidden">
-          {children}
-        </main>
-
-        <footer className="h-8 border-t border-border flex items-center justify-center bg-slate-50 text-[10px] text-slate-400 font-mono uppercase tracking-widest shrink-0">
-          AI-assisted retrieval. Do not replace clinical judgment or direct patient assessment.
-        </footer>
+        {children}
       </body>
     </html>
   );

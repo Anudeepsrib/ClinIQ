@@ -7,7 +7,7 @@ import logging
 from typing import Any, Dict
 
 from app.retrieval.state import GraphState
-from app.retrieval.vector_store import vector_store
+from app.retrieval.azure_search_store import azure_search_store
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ def retrieve(state: GraphState) -> Dict[str, Any]:
     departments = state.get("departments", ["general"])
 
     # Fan-out hybrid search across allowed departments
-    documents = vector_store.hybrid_search(question, departments=departments)
+    documents = azure_search_store.hybrid_search(question, departments=departments)
 
     logger.info(
         "  Retrieved %d docs from departments: %s", len(documents), departments

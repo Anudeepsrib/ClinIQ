@@ -53,6 +53,33 @@ class IngestResponse(BaseModel):
     chunks_count: int
 
 
+class UpsertResponse(BaseModel):
+    doc_id: str
+    filename: str
+    department: str
+    change_type: str        # 'new', 'updated', 'unchanged'
+    version: int
+    chunk_count: int
+    content_hash: str
+    previous_version: Optional[int] = None
+
+
+class DocumentInfo(BaseModel):
+    doc_id: str
+    filename: str
+    department: str
+    content_hash: str
+    chunk_count: int
+    version: int
+    ingested_by: str
+    ingested_at: str
+    status: str
+
+
+class DocumentHistory(BaseModel):
+    history: List[DocumentInfo]
+
+
 class ProcessedChunk(BaseModel):
     chunk_index: int
     content: str
@@ -79,6 +106,7 @@ class RetrievalResult(BaseModel):
 class QueryRequest(BaseModel):
     question: str
     departments: Optional[List[str]] = None  # filter to specific departments
+    session_id: Optional[str] = None         # enable chat history appending
 
 
 class QueryResponse(BaseModel):

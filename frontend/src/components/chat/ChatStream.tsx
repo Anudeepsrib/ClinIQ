@@ -19,14 +19,14 @@ export function ChatStream() {
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
                 {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                        <h2 className="font-display font-bold text-xl text-navy-800 tracking-tight mb-2">
+                        <h2 className="font-display font-bold text-xl text-black tracking-tight mb-2">
                             Clinical Knowledge Base
                         </h2>
                         <p className="font-mono text-xs max-w-md text-center leading-relaxed">
                             Ask a question about hospital protocols, resident care plans,
                             or staff procedures.
                             <br />
-                            <span className="text-red-500 font-bold mt-2 inline-block">
+                            <span className="text-crimson-600 font-bold mt-2 inline-block">
                                 All queries are linked to your identity for auditing.
                             </span>
                         </p>

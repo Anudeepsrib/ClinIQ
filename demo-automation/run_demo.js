@@ -32,10 +32,10 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         console.log("   📸 Saved 02_Clarification_Requested.png (Shows dynamic inline buttons)");
 
         console.log("3️⃣ Selecting Patient context for clarification...");
-        // Find and click the button containing "PATTERSON"
+        // Find and click the button containing "PATTERSON" (Case insensitive for new uppercase design)
         const clicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
-            const pattersonBtn = buttons.find(b => b.textContent && b.textContent.includes('PATTERSON'));
+            const pattersonBtn = buttons.find(b => b.textContent && b.textContent.toUpperCase().includes('PATTERSON'));
             if (pattersonBtn) {
                 pattersonBtn.click();
                 return true;
@@ -60,6 +60,39 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         await delay(2500);
         await page.screenshot({ path: '04_Standard_Retrieval.png' });
         console.log("   📸 Saved 04_Standard_Retrieval.png (Shows High Confidence protocol source)");
+
+        console.log("5️⃣ Toggling Enterprise Layout (80/20 -> 70/30)...");
+        // Wait just a moment to ensure UI is interactive after rapid chat sequences
+        await delay(1000);
+
+        try {
+            // Wait for any button within the header string
+            const toggled = await page.evaluate(() => {
+                const header = document.querySelector('header');
+                if (!header) return false;
+
+                const buttons = Array.from(header.querySelectorAll('button'));
+                // The toggle button is the only button in the header
+                if (buttons.length > 0) {
+                    buttons[0].click();
+                    return true;
+                }
+                return false;
+            });
+
+            if (toggled) {
+                console.log("   ✅ Layout Toggle clicked successfully");
+            } else {
+                console.log("   ❌ Could not click the Layout Toggle button in Header!");
+            }
+
+        } catch (err) {
+            console.log("   ❌ Error during layout toggle!", err.message);
+        }
+
+        await delay(1500); // Wait for transition animation to complete
+        await page.screenshot({ path: '05_Layout_Toggle.png' });
+        console.log("   📸 Saved 05_Layout_Toggle.png (Shows Layout Flexibility)");
 
         console.log("\n✅ Demo finished successfully! All screenshots saved to ./demo-automation/");
 

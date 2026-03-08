@@ -13,9 +13,9 @@ const config: Config = {
                 foreground: "var(--foreground)",
                 border: "var(--border)",
                 navy: {
-                    900: "#0a192f",
-                    800: "#112240",
-                    700: "#233554",
+                    900: "#050505", // Stark Black
+                    800: "#171717", // Neutral 900
+                    700: "#262626", // Neutral 800
                 },
                 cyan: {
                     400: "#64ffda",
@@ -23,9 +23,13 @@ const config: Config = {
                     600: "#0096c7",
                 },
                 gold: {
-                    400: "#fae178", // Lighter variant
-                    500: "#f8d858", // Base logo color RGB: 248, 216, 88
-                    600: "#d6b638", // Darker variant for hover
+                    400: "#ffeb85",
+                    500: "#ffde59", // Exact Logo Color RGB: 255, 222, 89
+                    600: "#cca82a",
+                },
+                crimson: {
+                    500: "#b81d1d",
+                    600: "#8f1818", // Exact Logo Red RGB: 143, 24, 24
                 },
                 red: {
                     500: "#ef233c",
@@ -33,16 +37,19 @@ const config: Config = {
                 },
             },
             borderRadius: {
-                none: "0",
-                sm: "0.125rem",
-                md: "0.125rem", // Strict 2px rounding
-                lg: "0.125rem",
+                none: "0px",
+                sm: "0px",
+                md: "2px", // Strict Enterprise rounding
+                lg: "2px",
+                xl: "2px",
+                "2xl": "2px",
+                "3xl": "2px",
                 full: "9999px",
             },
             fontFamily: {
-                sans: ["var(--font-inter)", "sans-serif"],
+                sans: ["var(--font-source-sans)", "sans-serif"],
+                display: ["var(--font-lexend)", "sans-serif"],
                 mono: ["var(--font-roboto-mono)", "monospace"],
-                display: ["var(--font-inter-display)", "sans-serif"],
             },
         },
     },

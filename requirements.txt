@@ -12,6 +12,8 @@ langsmith>=0.2.0
 
 # --- Vector store ---
 chromadb>=0.5.0
+azure-search-documents>=11.6.0
+azure-identity>=1.17.0
 
 # --- Data models ---
 pydantic>=2.5.0
