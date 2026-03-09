@@ -83,6 +83,17 @@ npm run dev
 ```
 UI available at `http://localhost:3000`.
 
+### 3. Enterprise Deployment (AKS / Kubernetes)
+ClinIQ comes with a production-ready Helm chart configured for Azure Kubernetes Service (AKS) or generic Kubernetes clusters.
+```bash
+# Ensure you are connected to your AKS cluster
+helm install cliniq ./aks/helm/cliniq \
+  --namespace cliniq \
+  --create-namespace \
+  -f ./aks/helm/cliniq/values.yaml
+```
+The Helm chart includes configurations for Horizontal Pod Autoscaling, resource quotas, non-root security contexts, and liveness/readiness probes.
+
 ---
 
 ## <a name="architecture"></a> Deep Dive: Architecture
