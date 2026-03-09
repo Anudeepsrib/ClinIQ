@@ -39,6 +39,17 @@ async def read_index():
 async def health_check():
     return {"status": "ok", "version": "1.0.0"}
 
+@app.get("/ready")
+async def readiness_check():
+    """Check if the service is ready to receive traffic."""
+    try:
+        from app.retrieval.vectorstore.ChromaWrapper import get_chroma_collections
+        collections = get_chroma_collections()
+        return {"status": "ready", "collections": len(collections)}
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail=f"Service Unavailable: {e}")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -1,0 +1,82 @@
+replicaCount: 2
+
+image:
+  repository: your-acr-name.azurecr.io/cliniq
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "1.0.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  name: "cliniq-sa"
+
+podAnnotations: {}
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: "nginx" # Adjust for Azure App Gateway if using AGIC
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: api.cliniq.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls:
+    - secretName: cliniq-tls
+      hosts:
+        - api.cliniq.example.com
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1024Mi
+  requests:
+    cpu: 250m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+env:
+  PYTHON_VERSION: "3.11.0"
+  CHROMA_PERSIST_DIRECTORY: "/app/data/vector_db"
+
+volumeMounts:
+  - name: cliniq-data
+    mountPath: /app/data
+
+volumes:
+  - name: cliniq-data
+    emptyDir: {} # For enterprise, replace with PersistentVolumeClaim pointing to Azure Disks or Azure Files
