@@ -43,56 +43,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         set((state) => ({ messages: [...state.messages, newMessage] }));
 
-        // Mock bot response logic
+        // Bot response logic via API fetch
         if (role === "user") {
             set({ isLoading: true });
 
-            setTimeout(() => {
-                const userQuery = content.toLowerCase();
-                let botResponse: Message = {
-                    id: (Date.now() + 1).toString(),
-                    role: "bot",
-                    content: "I did not understand. Could you rephrase your clinical query?",
-                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                };
+            (async () => {
+                try {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"; // pointing to prod FastAPI
+                    const res = await fetch(`${apiUrl}/api/v1/query`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ question: content })
+                    });
 
-                // Scenario 1: Clarification needed
-                if (userQuery.includes("lab") || userQuery.includes("results")) {
-                    botResponse = {
-                        ...botResponse,
-                        content: "I need a specific patient context to retrieve lab vitals. Which active patient are you inquiring about?",
-                        options: ["Patterson, Emily (Bed 4)", "Rodriguez, Luis (Bed 12)", "Search Global Directory"],
+                    if (!res.ok) throw new Error("API Error");
+
+                    const data = await res.json();
+
+                    const botResponse: Message = {
+                        id: (Date.now() + 1).toString(),
+                        role: "bot",
+                        content: data.answer,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        options: data.options?.length > 0 ? data.options : undefined,
+                        source: data.sources?.length > 0 ? data.sources[0].filename : undefined,
+                        confidence: data.confidence_score > 0.9 ? "High" : (data.confidence_score > 0.7 ? "Medium" : "Low"),
+                        masked: data.masked || false,
                     };
+
+                    // Specific UI Focus toggle for the demo scenario layout showcase
+                    if (content.toLowerCase().includes("patterson")) {
+                        set({ activeFocus: { name: "Emily Patterson", room: "Bed 4 - ICU", id: "MRN-10924", status: "CRITICAL" } });
+                    }
+
+                    set((state) => ({
+                        messages: [...state.messages, botResponse],
+                        isLoading: false,
+                    }));
+                } catch (err) {
+                    set((state) => ({
+                        messages: [...state.messages, {
+                            id: (Date.now() + 1).toString(),
+                            role: "bot",
+                            content: "Error communicating with the backend API.",
+                            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }],
+                        isLoading: false,
+                    }));
                 }
-
-                // Scenario 2: Selecting patient context after clarification
-                else if (userQuery.includes("patterson")) {
-                    set({ activeFocus: { name: "Emily Patterson", room: "Bed 4 - ICU", id: "MRN-10924", status: "CRITICAL" } });
-                    botResponse = {
-                        ...botResponse,
-                        content: "Retrieving lab vitals for Emily Patterson... CBC shows elevated WBC count. [MASK]",
-                        source: "EMR Integration v2.1",
-                        confidence: "High",
-                        masked: true, // Trigger InlineMasking for RBAC
-                    };
-                }
-
-                // Scenario 3: Standard Retrieval
-                else if (userQuery.includes("heparin") || userQuery.includes("dosage")) {
-                    botResponse = {
-                        ...botResponse,
-                        content: "The standard adult dosage protocol for Heparin (IV) is a bolus of 80 units/kg followed by an infusion of 18 units/kg/hr. Please re-verify against patient weight.",
-                        source: "Clinical Guidelines 2025",
-                        confidence: "High",
-                    };
-                }
-
-                set((state) => ({
-                    messages: [...state.messages, botResponse],
-                    isLoading: false,
-                }));
-
-            }, 1500);
+            })();
         }
     },
 }));
