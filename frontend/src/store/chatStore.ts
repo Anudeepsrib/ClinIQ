@@ -23,6 +23,7 @@ interface ChatState {
     activeFocus: ActiveFocus | null;
     isLoading: boolean;
     addMessage: (content: string, role?: "user" | "bot") => void;
+    copilotQuickHelp: (question: string, context?: string, department?: string) => void;
     setFocus: (focus: ActiveFocus | null) => void;
 }
 
@@ -93,5 +94,55 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 }
             })();
         }
+    },
+
+    copilotQuickHelp: (question, context, department) => {
+        const userMsg: Message = {
+            id: Date.now().toString(),
+            role: "user",
+            content: `🩺 [Copilot Health] ${question}`,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+
+        set((state) => ({ messages: [...state.messages, userMsg], isLoading: true }));
+
+        (async () => {
+            try {
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+                const res = await fetch(`${apiUrl}/api/v1/copilot/quick-help`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question, context, department }),
+                });
+
+                if (!res.ok) throw new Error("Copilot Health API Error");
+
+                const data = await res.json();
+
+                const botResponse: Message = {
+                    id: (Date.now() + 1).toString(),
+                    role: "bot",
+                    content: data.answer + (data.disclaimer ? `\n\n⚠️ ${data.disclaimer}` : ""),
+                    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    source: data.sources?.[0]?.title || "Microsoft Copilot Health",
+                    confidence: data.confidence === "high" ? "High" : (data.confidence === "medium" ? "Medium" : "Low"),
+                };
+
+                set((state) => ({
+                    messages: [...state.messages, botResponse],
+                    isLoading: false,
+                }));
+            } catch {
+                set((state) => ({
+                    messages: [...state.messages, {
+                        id: (Date.now() + 1).toString(),
+                        role: "bot",
+                        content: "Unable to reach Copilot Health. Please try again or use the standard query.",
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                    }],
+                    isLoading: false,
+                }));
+            }
+        })();
     },
 }));

@@ -24,7 +24,9 @@ ClinIQ is built and maintained by [Anudeep](https://github.com/anudeepsrib).
 - **[Zero Hallucination Tolerance](#)** — Every answer is hard-checked against retrieved medical documents. Un-grounded responses are explicitly blocked.
 - **[Inline PHI Masking](#)** — Built-in visual redaction engine hides Protected Health Information mid-sentence based on JWT role.
 - **[Clinical Precision Interface](#)** — Asymmetric 80/20 Context Grid designed for noisy hospital wards and maximum context retention.
-- **[Department-Scoped DBs](#)** — Strict data isolation via JWT-based Role Hierarchies (`Admin` → `Doctor` → `Nurse` → `Technician`) and ChromaDB multi-collections.
+- **[Department-Scoped DBs](#)** — Strict data isolation via JWT-based Role Hierarchies (`Admin` → `Doctor` → `Nurse` → `Technician`) and Azure AI Search multi-indexes.
+- **[Multimodal RAG (Gemini Embedding 2)](#)** — Natively embed text, images, PDFs, audio, and video in a single 3072-dim vector space. No OCR middleman — X-rays, DICOM scans, and voice notes are searchable out of the box.
+- **[Copilot Health Quick-Assist](#)** — Integrated Microsoft Copilot Health backend service gives doctors and nurses instant, evidence-based clinical intelligence without leaving ClinIQ.
 
 ---
 
@@ -55,7 +57,8 @@ ClinIQ is built and maintained by [Anudeep](https://github.com/anudeepsrib).
                 │        (Authentication)       │
                 └──────────────┬────────────────┘
                                │
-            ├─ Dept DBs (Chroma) ├─ Auth & RBAC (JWT)
+            ├─ Dept DBs (Azure AI Search)  ├─ Auth & RBAC (JWT)
+            ├─ Copilot Health Service      ├─ Gemini Embedding 2
                                │
                                ▼
                 ┌───────────────────────────────┐
@@ -71,7 +74,8 @@ ClinIQ is built and maintained by [Anudeep](https://github.com/anudeepsrib).
 ### 1. Start the Backend
 ```bash
 cp .env.example .env
-# Ensure OPENAI_API_KEY is configured in .env
+# Configure OPENAI_API_KEY and GOOGLE_API_KEY in .env
+pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
@@ -109,9 +113,25 @@ graph TD
         RoleCheck -->|Denied| Reject["403 Forbidden"]
     end
 
-    subgraph VectorDBs ["Department-Scoped Vector DBs"]
-        API --> DB1[("dept_radiology")]
-        API --> DB2[("dept_nursing")]
+    subgraph Ingestion ["Multimodal Ingestion Pipeline"]
+        API -->|Upload| Loader["LoaderFactory"]
+        Loader --> TextParser["PDF / DOCX / XLSX"]
+        Loader --> ImageParser["PNG / JPG / DICOM"]
+        Loader --> AudioParser["MP3 / WAV / M4A"]
+        Loader --> VideoParser["MP4 / MOV"]
+    end
+
+    subgraph EmbeddingLayer ["Gemini Embedding 2 (3072-dim)"]
+        TextParser --> GeminiEmb["Native Multimodal Embeddings"]
+        ImageParser --> GeminiEmb
+        AudioParser --> GeminiEmb
+        VideoParser --> GeminiEmb
+    end
+
+    subgraph VectorDBs ["Department-Scoped Vector Indexes"]
+        GeminiEmb --> DB1[("dept_radiology")]
+        GeminiEmb --> DB2[("dept_nursing")]
+        GeminiEmb --> DB3[("dept_... ")]
     end
 
     subgraph RetrievalGraph ["Stateful RAG Pipeline (LangGraph)"]
@@ -124,6 +144,11 @@ graph TD
         HalCheck -->|Grounded| Response["✅ Final Answer + Confidence"]
     end
 
+    subgraph CopilotHealth ["Microsoft Copilot Health"]
+        API -->|"Quick Help"| CopilotSvc["🩺 Copilot Health Service"]
+        CopilotSvc --> CopilotResp["Evidence-Based Answer + Sources"]
+    end
+
     VectorDBs <--> Retriever
 ```
 
@@ -134,6 +159,8 @@ graph TD
 - **Frontend:** React, Next.js 14, Tailwind CSS v4, Zustand
 - **Backend:** Python 3.10+, FastAPI, Uvicorn
 - **Orchestration:** LangChain ≥0.3, LangGraph ≥0.2
-- **Vector DB:** ChromaDB ≥0.5
+- **Embeddings:** Google Gemini Embedding 2 (3072-dim, multimodal)
+- **Vector Search:** Azure AI Search (hybrid: vector + BM25)
+- **Clinical Intelligence:** Microsoft Copilot Health
 
 *Built for the future of healthcare. Designed with architectural discipline.*

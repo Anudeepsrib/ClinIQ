@@ -8,9 +8,12 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     OPENAI_API_KEY: str
+    GOOGLE_API_KEY: str = ""
     CHROMA_PERSIST_DIRECTORY: str = "./data/vector_db"
     DOCS_DIRECTORY: str = "./data/docs"
     EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_PROVIDER: str = "gemini"  # "gemini" | "openai"
+    EMBEDDING_DIMENSIONS: int = 3072    # Gemini Embedding 2 default (MRL: 3072/1536/768)
     LLM_MODEL: str = "gpt-4o"
 
     # --- Azure AI Search ---

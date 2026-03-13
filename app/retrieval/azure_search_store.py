@@ -34,13 +34,13 @@ from azure.search.documents.indexes.models import (
 )
 from azure.search.documents.models import VectorizedQuery
 
-from langchain_openai import OpenAIEmbeddings
+from app.retrieval.gemini_embeddings import gemini_embeddings
 from app.schemas.models import ProcessedChunk, RetrievalResult
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-VECTOR_DIMENSIONS = 1536  # text-embedding-3-small
+VECTOR_DIMENSIONS = settings.EMBEDDING_DIMENSIONS  # 3072 for Gemini Embedding 2
 
 
 class AzureSearchVectorStore:
@@ -55,10 +55,7 @@ class AzureSearchVectorStore:
         self.endpoint = settings.AZURE_SEARCH_ENDPOINT
         self.credential = AzureKeyCredential(settings.AZURE_SEARCH_API_KEY)
         self.index_prefix = settings.AZURE_SEARCH_INDEX_PREFIX
-        self.embedding_fn = OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL,
-            api_key=settings.OPENAI_API_KEY,
-        )
+        self.embedding_fn = gemini_embeddings
         self._index_client = SearchIndexClient(
             endpoint=self.endpoint,
             credential=self.credential,
@@ -169,7 +166,37 @@ class AzureSearchVectorStore:
         client = self._get_search_client(department)
 
         texts = [c.content for c in chunks]
-        embeddings = self.embedding_fn.embed_documents(texts)
+
+        # Generate embeddings: use native multimodal for chunks with raw_bytes
+        embeddings = []
+        for i, chunk in enumerate(chunks):
+            if chunk.raw_bytes and chunk.embedding_modality != "text":
+                try:
+                    if chunk.embedding_modality == "image":
+                        emb = self.embedding_fn.embed_image(chunk.raw_bytes, chunk.mime_type or "image/png")
+                    elif chunk.embedding_modality == "pdf":
+                        emb = self.embedding_fn.embed_pdf(chunk.raw_bytes)
+                    elif chunk.embedding_modality == "audio":
+                        emb = self.embedding_fn.embed_audio(chunk.raw_bytes, chunk.mime_type or "audio/mp3")
+                    elif chunk.embedding_modality == "video":
+                        emb = self.embedding_fn.embed_video(chunk.raw_bytes, chunk.mime_type or "video/mp4")
+                    else:
+                        emb = self.embedding_fn.embed_query(chunk.content)
+                    embeddings.append(emb)
+                except Exception as e:
+                    logger.warning(f"Multimodal embedding failed for chunk {i}, falling back to text: {e}")
+                    embeddings.append(self.embedding_fn.embed_query(chunk.content))
+            else:
+                embeddings.append(None)  # placeholder, batch later
+
+        # Batch-embed all text-only chunks
+        text_indices = [i for i, emb in enumerate(embeddings) if emb is None]
+        if text_indices:
+            text_contents = [texts[i] for i in text_indices]
+            text_embeddings = self.embedding_fn.embed_documents(text_contents)
+            for idx, emb in zip(text_indices, text_embeddings):
+                embeddings[idx] = emb
+
         now = datetime.now(timezone.utc).isoformat()
 
         documents = []

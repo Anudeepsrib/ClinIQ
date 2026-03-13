@@ -39,3 +39,4 @@ class GraphState(TypedDict):
     metadata: Dict[str, Any]
     clarification_needed: bool
     clarification_options: List[str]
+    query_modality: str  # "text" | "image" | "audio" | "video"

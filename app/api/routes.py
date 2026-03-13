@@ -27,6 +27,10 @@ from app.observability.tracing import build_langsmith_config, create_feedback as
 
 router = APIRouter()
 
+# --- Include sub-routers ---
+from app.api.copilot import router as copilot_router
+router.include_router(copilot_router)
+
 
 # =========================================================================
 # Auth endpoints

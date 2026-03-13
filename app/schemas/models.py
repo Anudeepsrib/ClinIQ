@@ -88,6 +88,9 @@ class ProcessedChunk(BaseModel):
     sheet_name: Optional[str] = None
     row_range: Optional[str] = None
     modality: Optional[str] = "text"  # text | image | table | dicom
+    embedding_modality: str = "text"  # text | image | pdf | audio | video (for Gemini)
+    raw_bytes: Optional[bytes] = None  # raw binary data for native multimodal embedding
+    mime_type: Optional[str] = None    # MIME type for raw_bytes (e.g. image/png)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 
