@@ -58,7 +58,7 @@ class GeminiMultimodalEmbeddings:
 
         client = self._get_gemini_client()
         result = client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.EMBEDDING_MODEL,
             contents=texts,
             config={
                 "output_dimensionality": self._dimensions,
@@ -73,7 +73,7 @@ class GeminiMultimodalEmbeddings:
 
         client = self._get_gemini_client()
         result = client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.EMBEDDING_MODEL,
             contents=query,
             config={
                 "output_dimensionality": self._dimensions,
@@ -95,7 +95,7 @@ class GeminiMultimodalEmbeddings:
 
         client = self._get_gemini_client()
         result = client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.EMBEDDING_MODEL,
             contents=types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
             config={
                 "output_dimensionality": self._dimensions,
@@ -113,7 +113,7 @@ class GeminiMultimodalEmbeddings:
 
         client = self._get_gemini_client()
         result = client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.EMBEDDING_MODEL,
             contents=types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf"),
             config={
                 "output_dimensionality": self._dimensions,
@@ -131,7 +131,7 @@ class GeminiMultimodalEmbeddings:
 
         client = self._get_gemini_client()
         result = client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.EMBEDDING_MODEL,
             contents=types.Part.from_bytes(data=audio_bytes, mime_type=mime_type),
             config={
                 "output_dimensionality": self._dimensions,
@@ -149,7 +149,7 @@ class GeminiMultimodalEmbeddings:
 
         client = self._get_gemini_client()
         result = client.models.embed_content(
-            model="gemini-embedding-exp-03-07",
+            model=settings.EMBEDDING_MODEL,
             contents=types.Part.from_bytes(data=video_bytes, mime_type=mime_type),
             config={
                 "output_dimensionality": self._dimensions,

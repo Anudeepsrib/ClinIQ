@@ -22,17 +22,22 @@ interface ChatState {
     messages: Message[];
     activeFocus: ActiveFocus | null;
     isLoading: boolean;
+    llmProvider: "azure_openai" | "ollama" | "vllm";
     addMessage: (content: string, role?: "user" | "bot") => void;
     copilotQuickHelp: (question: string, context?: string, department?: string) => void;
     setFocus: (focus: ActiveFocus | null) => void;
+    setLlmProvider: (provider: "azure_openai" | "ollama" | "vllm") => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
     messages: [],
     activeFocus: null,
     isLoading: false,
+    llmProvider: "azure_openai",
 
     setFocus: (focus) => set({ activeFocus: focus }),
+    
+    setLlmProvider: (provider) => set({ llmProvider: provider }),
 
     addMessage: (content, role = "user") => {
         const newMessage: Message = {
@@ -112,7 +117,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 const res = await fetch(`${apiUrl}/api/v1/copilot/quick-help`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question, context, department }),
+                    body: JSON.stringify({ 
+                        question, 
+                        context, 
+                        department,
+                        provider: get().llmProvider // Send the selected provider
+                    }),
                 });
 
                 if (!res.ok) throw new Error("Copilot Health API Error");

@@ -11,10 +11,19 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: str = ""
     CHROMA_PERSIST_DIRECTORY: str = "./data/vector_db"
     DOCS_DIRECTORY: str = "./data/docs"
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    EMBEDDING_MODEL: str = "multimodal-embedding-002" # Gemini 2 Stable or text-embedding-3-small
     EMBEDDING_PROVIDER: str = "gemini"  # "gemini" | "openai"
-    EMBEDDING_DIMENSIONS: int = 3072    # Gemini Embedding 2 default (MRL: 3072/1536/768)
+    EMBEDDING_DIMENSIONS: int = 3072    # Gemini 2 / OpenAI Large (MRL: 3072/1536/768)
+    
+    # --- LLM Provider Selection ---
+    LLM_PROVIDER: str = "azure_openai"  # "azure_openai" | "ollama" | "vllm"
     LLM_MODEL: str = "gpt-4o"
+    LOCAL_LLM_MODEL: str = "gemma4:e4b"
+    LOCAL_LLM_MAX_CTX: int = 32768
+    
+    # --- Local Model Servers (Security: Restricted to localhost by default) ---
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    VLLM_BASE_URL: str = "http://localhost:8000"
 
     # --- Azure AI Search ---
     AZURE_SEARCH_ENDPOINT: str = ""

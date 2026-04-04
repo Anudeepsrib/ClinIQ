@@ -60,9 +60,7 @@ class CopilotHealthService:
     ) -> CopilotHelpResponse:
         """
         Query Copilot Health for quick medical intelligence.
-
-        Currently uses Azure OpenAI as a bridge until the official
-        Copilot Health API is publicly available for integration.
+        Routes between Cloud (Azure) and Local (Gemma 4) providers.
         """
         try:
             answer, sources = await self._call_copilot_api(
@@ -70,6 +68,8 @@ class CopilotHealthService:
                 context=request.context,
                 department=request.department,
                 user_role=user_role,
+                images=request.images,
+                provider=request.provider,
             )
 
             confidence = self._assess_confidence(answer)
@@ -97,18 +97,15 @@ class CopilotHealthService:
         context: Optional[str],
         department: Optional[str],
         user_role: str,
+        images: Optional[list[str]] = None,
+        provider: Optional[str] = None,
     ) -> tuple[str, list[CopilotSource]]:
         """
         Call the underlying AI service for medical intelligence.
-
-        Architecture note: This method is the single integration point.
-        When Microsoft releases the Copilot Health API for programmatic
-        access, replace the body of this method — the rest of the service
-        remains unchanged.
+        Supports both Azure OpenAI and local Gemma 4 (natively multimodal).
         """
-        from openai import AsyncOpenAI
-
-        client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        # Prioritize request-level provider override, fallback to global settings
+        active_provider = provider or settings.LLM_PROVIDER
 
         user_prompt = question
         if context:
@@ -116,25 +113,44 @@ class CopilotHealthService:
         if department:
             user_prompt += f"\n\n(Department: {department}, Role: {user_role})"
 
-        response = await client.chat.completions.create(
-            model=settings.LLM_MODEL,
-            messages=[
-                {"role": "system", "content": COPILOT_HEALTH_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,  # low temp for factual medical queries
-            max_tokens=1024,
-        )
-
-        answer = response.choices[0].message.content or "No response generated."
-
-        sources = [
-            CopilotSource(
-                title="Microsoft Copilot Health — Medical Intelligence",
-                url="https://copilot.microsoft.com/health",
-                provider="Microsoft Copilot Health",
+        if active_provider in ("ollama", "vllm"):
+            from app.chat.local_llm_adapter import local_llm_adapter
+            
+            answer = await local_llm_adapter.generate_response(
+                prompt=user_prompt,
+                system_prompt=COPILOT_HEALTH_SYSTEM_PROMPT,
+                images=images
             )
-        ]
+            
+            sources = [
+                CopilotSource(
+                    title=f"Gemma 4 ({settings.LLM_PROVIDER.upper()}) — Local Clinical Intel",
+                    url="http://localhost",
+                    provider=f"Google Gemma 4 via {settings.LLM_PROVIDER.title()}",
+                )
+            ]
+        else:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+            response = await client.chat.completions.create(
+                model=settings.LLM_MODEL,
+                messages=[
+                    {"role": "system", "content": COPILOT_HEALTH_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=1024,
+            )
+            answer = response.choices[0].message.content or "No response generated."
+            
+            sources = [
+                CopilotSource(
+                    title="Microsoft Copilot Health — Medical Intelligence",
+                    url="https://copilot.microsoft.com/health",
+                    provider="Microsoft Copilot Health",
+                )
+            ]
 
         return answer, sources
 

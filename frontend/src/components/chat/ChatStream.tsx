@@ -3,6 +3,7 @@
 import { useRef, useEffect } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { ChatInput } from "../input/ChatInput";
+import { ModelSwitcher } from "./ModelSwitcher";
 import { useChatStore } from "@/store/chatStore";
 
 export function ChatStream() {
@@ -16,6 +17,7 @@ export function ChatStream() {
 
     return (
         <div className="flex flex-col h-full bg-white relative">
+            <ModelSwitcher />
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
                 {messages.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-slate-400">

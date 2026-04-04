@@ -8,6 +8,12 @@ class CopilotHelpRequest(BaseModel):
     question: str = Field(..., min_length=1, description="The clinical question to ask Copilot Health")
     context: Optional[str] = None  # optional patient/clinical context
     department: Optional[str] = None
+    provider: Optional[str] = Field(
+        None, description="Request-level LLM provider override ('azure_openai' | 'ollama' | 'vllm')"
+    )
+    images: Optional[List[str]] = Field(
+        None, description="List of Base64 encoded images for multimodal analysis (radiology, forms, etc.)"
+    )
 
 
 class CopilotSource(BaseModel):
