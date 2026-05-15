@@ -117,13 +117,13 @@ async function loadDepartments() {
         // Upload dropdown
         const sel = document.getElementById('uploadDept');
         sel.innerHTML = userDepartments.map(d =>
-            `<option value="${d}">${d.charAt(0).toUpperCase() + d.slice(1)}</option>`
+            `<option value="${escapeHtml(d)}">${escapeHtml(d.charAt(0).toUpperCase() + d.slice(1))}</option>`
         ).join('');
 
         // Sidebar dept filter chips
         const filter = document.getElementById('deptFilter');
         filter.innerHTML = userDepartments.map(d =>
-            `<button class="dept-chip active" data-dept="${d}" onclick="toggleDeptChip(this)">${d.charAt(0).toUpperCase() + d.slice(1)}</button>`
+            `<button class="dept-chip active" data-dept="${escapeHtml(d)}" onclick="toggleDeptChip(this)">${escapeHtml(d.charAt(0).toUpperCase() + d.slice(1))}</button>`
         ).join('');
         selectedQueryDepts = new Set(userDepartments);
 
@@ -132,7 +132,7 @@ async function loadDepartments() {
         if (checkboxArea) {
             checkboxArea.innerHTML =
                 allDepartments.map(d =>
-                    `<label class="cb-item"><input type="checkbox" value="${d}" checked> ${d.charAt(0).toUpperCase() + d.slice(1)}</label>`
+                    `<label class="cb-item"><input type="checkbox" value="${escapeHtml(d)}" checked> ${escapeHtml(d.charAt(0).toUpperCase() + d.slice(1))}</label>`
                 ).join('');
         }
     } catch (err) {
@@ -195,8 +195,8 @@ async function uploadFile(file) {
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
             <polyline points="14 2 14 8 20 8"/>
         </svg>
-        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;">${file.name}</span>
-        <span class="dept-tag">${department}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.78rem;">${escapeHtml(file.name)}</span>
+        <span class="dept-tag">${escapeHtml(department)}</span>
         <span class="file-status">Uploading…</span>
     `;
     uploadList.prepend(item);
@@ -341,7 +341,7 @@ function appendAIMessage(data) {
     if (departments_searched.length > 0) {
         deptsHtml = `<div class="searched-depts">
             <span style="font-size:0.7rem;color:var(--text-muted);margin-right:0.3rem;">Searched:</span>
-            ${departments_searched.map(d => `<span class="dept-chip-sm">${d}</span>`).join('')}
+            ${departments_searched.map(d => `<span class="dept-chip-sm">${escapeHtml(d)}</span>`).join('')}
         </div>`;
     }
 
@@ -368,6 +368,10 @@ function appendAIMessage(data) {
         let html = marked.parse(answer);
         html = html.replace(/\[Ref (\d+)\]/g,
             '<span class="citation-ref" title="Source reference">[Ref $1]</span>');
+        html = DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'span'],
+            ALLOWED_ATTR: ['class', 'title']
+        });
         panelHtml = buildConfidencePanel(hallucination_score, confidence_score, sources);
         const div = document.createElement('div');
         div.className = 'message system';
@@ -465,7 +469,7 @@ function buildConfidencePanel(hallucinationScore, confidenceScore, sources) {
                 <div class="source-item">
                     <span class="source-num">${i + 1}</span>
                     <span class="source-text" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
-                    ${dept ? `<span class="source-dept">${dept}</span>` : ''}
+                    ${dept ? `<span class="source-dept">${escapeHtml(dept)}</span>` : ''}
                     ${score ? `<span class="source-score">${score}</span>` : ''}
                 </div>`;
         }).join('');

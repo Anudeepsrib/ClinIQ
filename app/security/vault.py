@@ -2,8 +2,12 @@ import sqlite3
 import os
 from contextlib import contextmanager
 
+from app.core.config import settings
+
+
 class Vault:
-    def __init__(self, db_path: str = "data/vault.db"):
+    def __init__(self, db_path: str = None):
+        db_path = db_path or settings.VAULT_DB_PATH
         self.db_path = db_path
         self._init_db()
 
@@ -33,7 +37,7 @@ class Vault:
                 (token, original_value)
             )
 
-    def get(self, token: str) -> str:
+    def get(self, token: str) -> str | None:
         with self._get_conn() as conn:
             cursor = conn.execute(
                 "SELECT original_value FROM token_map WHERE token = ?",

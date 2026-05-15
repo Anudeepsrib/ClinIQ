@@ -37,7 +37,7 @@ async def get_current_user(
     try:
         payload = decode_access_token(credentials.credentials)
         username: str = payload.get("sub")
-        if not username:
+        if not username or payload.get("typ") != "access":
             raise HTTPException(status_code=401, detail="Invalid token payload")
     except pyjwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired. Please log in again.")

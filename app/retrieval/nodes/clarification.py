@@ -109,6 +109,13 @@ def clarification_check(state: GraphState) -> Dict[str, Any]:
     departments = state.get("departments", [])
     role        = state.get("role", "viewer")
 
+    if not settings.OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY missing — skipping LLM clarification check")
+        return {
+            "clarification_needed": False,
+            "clarification_options": [],
+        }
+
     llm = ChatOpenAI(
         model=settings.LLM_MODEL,
         temperature=0,

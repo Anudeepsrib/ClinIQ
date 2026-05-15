@@ -4,7 +4,7 @@ Authentication module — JWT-based user management for hospital deployment.
 Provides:
 - SQLite-backed user registry with bcrypt password hashing
 - JWT token creation / verification
-- Default admin user seeded on first startup
+- Optional demo admin seeding for local development only
 """
 
 import sqlite3
@@ -41,16 +41,22 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ---------------------------------------------------------------------------
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
     expire = datetime.now(timezone.utc) + (
         expires_delta or timedelta(minutes=settings.JWT_EXPIRY_MINUTES)
     )
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "iat": now, "typ": "access"})
     return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
 def decode_access_token(token: str) -> dict:
     """Decode and verify a JWT. Raises jwt.PyJWTError on failure."""
-    return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    return jwt.decode(
+        token,
+        settings.JWT_SECRET_KEY,
+        algorithms=[settings.JWT_ALGORITHM],
+        options={"require": ["exp", "iat"]},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -114,16 +120,37 @@ class UserDB:
             """)
 
     def _seed_admin(self):
-        """Create the default admin user if no users exist."""
+        """Create a demo admin only when explicitly enabled for local use."""
         with self._conn() as conn:
             row = conn.execute("SELECT COUNT(*) as cnt FROM users").fetchone()
-            if row["cnt"] == 0:
-                all_depts = json.dumps(settings.departments_list)
-                conn.execute(
-                    "INSERT INTO users (username, full_name, hashed_pw, role, departments) VALUES (?, ?, ?, ?, ?)",
-                    ("admin", "System Administrator", hash_password("admin123"), "admin", all_depts),
+            if row["cnt"] != 0:
+                return
+
+            if not settings.ALLOW_DEMO_ADMIN:
+                logger.warning(
+                    "No users exist and demo admin seeding is disabled. "
+                    "Create an admin through a trusted setup workflow."
                 )
-                logger.info("Seeded default admin user (admin / admin123)")
+                return
+
+            if not settings.DEMO_ADMIN_PASSWORD or len(settings.DEMO_ADMIN_PASSWORD) < 12:
+                logger.warning(
+                    "ALLOW_DEMO_ADMIN is true but DEMO_ADMIN_PASSWORD is missing or too short."
+                )
+                return
+
+            all_depts = json.dumps(settings.departments_list)
+            conn.execute(
+                "INSERT INTO users (username, full_name, hashed_pw, role, departments) VALUES (?, ?, ?, ?, ?)",
+                (
+                    settings.DEMO_ADMIN_USERNAME,
+                    "Demo Administrator",
+                    hash_password(settings.DEMO_ADMIN_PASSWORD),
+                    "admin",
+                    all_depts,
+                ),
+            )
+            logger.info("Seeded demo admin user '%s'", settings.DEMO_ADMIN_USERNAME)
 
     # ----- CRUD ----------------------------------------------------------
 
@@ -137,6 +164,8 @@ class UserDB:
     ) -> dict:
         if role not in ROLE_HIERARCHY:
             raise ValueError(f"Invalid role '{role}'. Must be one of {list(ROLE_HIERARCHY.keys())}")
+        if len(password) < 12:
+            raise ValueError("Password must be at least 12 characters")
 
         valid_depts = settings.departments_list
         dept_list = departments or DEFAULT_ROLE_DEPARTMENTS.get(role, ["general"])

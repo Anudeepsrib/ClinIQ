@@ -10,6 +10,8 @@ build/
 
 # --- Environment ---
 .env
+.env.*
+!.env.example
 venv/
 env/
 .venv/
@@ -29,6 +31,9 @@ data/docs/
 data/test_docs/
 data/vault.db
 data/users.db
+data/document_registry.db
+data/**/*.db
+data/**/*.sqlite3
 
 # --- Agent / Gemini ---
 .agent/
@@ -36,12 +41,13 @@ data/users.db
 
 # --- Testing ---
 .pytest_cache/
+.ruff_cache/
+.mypy_cache/
 .coverage
 htmlcov/
 *.cover
-
-# --- Docker ---
-.dockerignore
+coverage.xml
+.hypothesis/
 
 # --- Logs ---
 *.log
@@ -53,16 +59,22 @@ ehthumbs.db
 # --- Node / Next.js / Frontend ---
 node_modules/
 .next/
+frontend/.next/
 out/
 build/
 .env*.local
+frontend/.env*.local
+!frontend/.env.example
 .vercel/
 *.tsbuildinfo
 next-env.d.ts
 
 # --- Demo Automation ---
 demo-automation/*.png
+demo-automation/node_modules/
 build_output.txt
+frontend/build_output.txt
+tmp/
 
 # --- AI Workflows ---
 color_extractor.py

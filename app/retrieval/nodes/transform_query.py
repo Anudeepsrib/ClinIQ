@@ -64,6 +64,15 @@ def transform_query(state: GraphState) -> Dict[str, Any]:
     retry_count = state.get("retry_count", 0)
     transformations = list(state.get("query_transformations", []))
 
+    if not settings.OPENAI_API_KEY:
+        retry_count += 1
+        logger.warning("OPENAI_API_KEY missing — skipping query rewrite")
+        return {
+            "question": original_question,
+            "retry_count": retry_count,
+            "query_transformations": transformations,
+        }
+
     llm = ChatOpenAI(
         model=settings.LLM_MODEL,
         temperature=0.4,  # slight creativity for synonyms

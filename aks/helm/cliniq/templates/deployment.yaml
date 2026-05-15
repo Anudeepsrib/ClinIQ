@@ -36,8 +36,10 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "cliniq.fullname" . }}-config
+            {{- if or .Values.secrets.create .Values.secrets.existingSecret }}
             - secretRef:
-                name: {{ include "cliniq.fullname" . }}-secret
+                name: {{ default (printf "%s-secret" (include "cliniq.fullname" .)) .Values.secrets.existingSecret }}
+            {{- end }}
           ports:
             - name: http
               containerPort: 8000

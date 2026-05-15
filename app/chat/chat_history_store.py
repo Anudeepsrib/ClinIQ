@@ -16,7 +16,6 @@ import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
 
-from langchain_openai import OpenAIEmbeddings
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -94,6 +93,14 @@ class ChatHistoryStore:
     COLLECTION_NAME = "cliniq_chat_history"
 
     def __init__(self):
+        self._client = None
+        self._collection = None
+        self.embedding_fn = None
+
+        if not settings.CHAT_HISTORY_ENABLED:
+            logger.info("ChatHistoryStore disabled")
+            return
+
         host = getattr(settings, "AZURE_CHROMA_HOST", "localhost")
         port = getattr(settings, "AZURE_CHROMA_PORT", 8000)
         auth_token = getattr(settings, "AZURE_CHROMA_AUTH_TOKEN", "")
@@ -117,6 +124,12 @@ class ChatHistoryStore:
             metadata={"hnsw:space": "cosine"},
         )
 
+        if not settings.OPENAI_API_KEY:
+            logger.warning("ChatHistoryStore enabled but OPENAI_API_KEY is missing; semantic history disabled")
+            return
+
+        from langchain_openai import OpenAIEmbeddings
+
         self.embedding_fn = OpenAIEmbeddings(
             model=settings.EMBEDDING_MODEL,
             api_key=settings.OPENAI_API_KEY,
@@ -137,6 +150,16 @@ class ChatHistoryStore:
         department: str = "",
     ) -> ChatMessage:
         """Embed and store a single chat turn."""
+        if self._collection is None or self.embedding_fn is None:
+            logger.info("Chat history append skipped because storage is disabled")
+            return ChatMessage(
+                role=role,
+                content=content,
+                session_id=session_id,
+                user_id=user_id,
+                department=department,
+            )
+
         existing = self._collection.get(
             where={"session_id": session_id},
         )
@@ -178,6 +201,9 @@ class ChatHistoryStore:
         Retrieve all messages in a session, ordered by msg_index.
         Returns empty list if user_id doesn't own this session.
         """
+        if self._collection is None:
+            return []
+
         results = self._collection.get(
             where={
                 "$and": [
@@ -210,6 +236,9 @@ class ChatHistoryStore:
         self, user_id: str, query: str, k: int = 10
     ) -> List[ChatMessage]:
         """Semantic search across a user's past conversations."""
+        if self._collection is None or self.embedding_fn is None:
+            return []
+
         query_embedding = self.embedding_fn.embed_query(query)
 
         results = self._collection.query(
@@ -238,6 +267,9 @@ class ChatHistoryStore:
 
     def list_sessions(self, user_id: str) -> List[SessionSummary]:
         """Return all sessions for a user (for the sidebar)."""
+        if self._collection is None:
+            return []
+
         results = self._collection.get(
             where={"user_id": user_id},
             include=["documents", "metadatas"],
@@ -277,6 +309,9 @@ class ChatHistoryStore:
         Delete a session. Only succeeds if the user owns the session.
         Admin bypass is handled at the API layer.
         """
+        if self._collection is None:
+            return False
+
         results = self._collection.get(
             where={
                 "$and": [
@@ -295,6 +330,9 @@ class ChatHistoryStore:
 
     def admin_get_session(self, session_id: str) -> List[ChatMessage]:
         """Admin-only: retrieve any session regardless of owner."""
+        if self._collection is None:
+            return []
+
         results = self._collection.get(
             where={"session_id": session_id},
             include=["documents", "metadatas"],
@@ -320,6 +358,9 @@ class ChatHistoryStore:
 
     def admin_delete_session(self, session_id: str) -> bool:
         """Admin-only: delete any session."""
+        if self._collection is None:
+            return False
+
         results = self._collection.get(
             where={"session_id": session_id},
         )

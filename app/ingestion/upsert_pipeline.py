@@ -12,12 +12,15 @@ Unchanged documents are skipped entirely — zero wasted compute.
 """
 
 import logging
+import inspect
 from dataclasses import dataclass
 from typing import Optional
 
 from app.ingestion.document_registry import document_registry, DocumentRegistry
 from app.ingestion.loader_factory import LoaderFactory
 from app.retrieval.azure_search_store import azure_search_store
+from app.core.config import settings
+from app.security.uploads import sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +61,10 @@ async def upsert_document(
         UpsertResult with change_type, version, and chunk count.
     """
     department = department.lower()
+    filename = sanitize_filename(filename)
+
+    if len(file_bytes) > settings.MAX_UPLOAD_BYTES:
+        raise ValueError(f"File exceeds maximum size of {settings.MAX_UPLOAD_BYTES} bytes")
 
     # 1. Compute content hash
     content_hash = DocumentRegistry.compute_hash(file_bytes)
@@ -83,7 +90,8 @@ async def upsert_document(
     previous_version = existing["version"] if is_update else None
 
     # 4. Parse file through the loader factory (PII anonymization included)
-    chunks = await loader_factory.process_file(file_bytes, filename, content_type)
+    maybe_chunks = loader_factory.process_file(file_bytes, filename, content_type)
+    chunks = await maybe_chunks if inspect.isawaitable(maybe_chunks) else maybe_chunks
 
     if not chunks:
         logger.warning(f"No chunks produced for {filename}")
@@ -149,6 +157,7 @@ async def delete_document(
     and mark the registry entry as deleted.
     """
     department = department.lower()
+    filename = sanitize_filename(filename)
     doc_id = DocumentRegistry.build_doc_id(department, filename)
 
     existing = document_registry.lookup(doc_id)

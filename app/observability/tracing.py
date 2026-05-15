@@ -11,7 +11,7 @@ Provides:
 """
 
 import logging
-import os
+import hashlib
 from typing import Any, Dict, List, Optional
 
 from langchain_core.runnables import RunnableConfig
@@ -30,6 +30,9 @@ _langsmith_client = None
 def get_langsmith_client():
     """Return a shared ``langsmith.Client`` instance (lazy-init)."""
     global _langsmith_client  # noqa: PLW0603
+    if not settings.ENABLE_EXTERNAL_TRACING:
+        logger.debug("LangSmith client not initialised because external tracing is disabled")
+        return None
     if _langsmith_client is None:
         try:
             from langsmith import Client
@@ -75,8 +78,20 @@ def build_langsmith_config(
     Returns:
         A ``RunnableConfig`` ready to pass to LangGraph.
     """
+    if not settings.ENABLE_EXTERNAL_TRACING:
+        return {
+            "metadata": {
+                "external_tracing": False,
+                "departments": departments,
+                "user_role": role,
+            },
+            "tags": ["external-tracing-disabled", f"role:{role}"],
+            "run_name": "ClinIQ query",
+        }
+
+    user_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:12]
     metadata: Dict[str, Any] = {
-        "user_id": user_id,
+        "user_hash": user_hash,
         "user_role": role,
         "departments": departments,
         "project": settings.LANGCHAIN_PROJECT,
@@ -86,7 +101,7 @@ def build_langsmith_config(
 
     tags: List[str] = [
         f"role:{role}",
-        f"user:{user_id}",
+        f"user:{user_hash}",
         *(f"dept:{d}" for d in departments),
     ]
     if extra_tags:
@@ -128,6 +143,10 @@ def create_feedback(
     Returns:
         ``True`` if the feedback was recorded successfully.
     """
+    if not settings.ENABLE_EXTERNAL_TRACING:
+        logger.info("Feedback not sent because external tracing is disabled")
+        return False
+
     client = get_langsmith_client()
     if client is None:
         logger.warning("Cannot record feedback — LangSmith client unavailable")

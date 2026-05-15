@@ -75,6 +75,13 @@ def grade_documents(state: GraphState) -> Dict[str, Any]:
     question = state["question"]
     documents = state["documents"]
 
+    if not documents:
+        return {"documents": [], "question": question}
+
+    if not settings.OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY missing — skipping LLM document grading")
+        return {"documents": documents, "question": question}
+
     # LLM with structured output
     llm = ChatOpenAI(
         model=settings.LLM_MODEL,

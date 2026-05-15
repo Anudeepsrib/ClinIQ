@@ -1,13 +1,15 @@
 import pandas as pd
-from ragas import evaluate
-from ragas.metrics import (
-    context_precision,
-    faithfulness,
-    answer_relevance,
-)
-from datasets import Dataset
 from app.retrieval.graph import app_graph
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+
+try:
+    from datasets import Dataset
+    from ragas import evaluate
+    from ragas.metrics import answer_relevance, context_precision, faithfulness
+except ImportError as exc:
+    raise SystemExit(
+        "Optional RAGAS evaluation dependencies are not installed. "
+        "Install a patched RAGAS release before running this script."
+    ) from exc
 
 def evaluate_rag():
     # Load test set

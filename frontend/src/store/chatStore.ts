@@ -29,6 +29,29 @@ interface ChatState {
     setLlmProvider: (provider: "azure_openai" | "ollama" | "vllm") => void;
 }
 
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+function getJsonHeaders(): HeadersInit {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (typeof window !== "undefined") {
+        const token = window.localStorage.getItem("cliniq_token");
+        if (token) {
+            headers.Authorization = `Bearer ${token}`;
+        }
+    }
+    return headers;
+}
+
+async function parseError(res: Response): Promise<string> {
+    try {
+        const data = await res.json();
+        if (typeof data.detail === "string") return data.detail;
+    } catch {
+        // Keep the generic status message below.
+    }
+    return `Request failed (${res.status})`;
+}
+
 export const useChatStore = create<ChatState>((set, get) => ({
     messages: [],
     activeFocus: null,
@@ -55,14 +78,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
             (async () => {
                 try {
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"; // pointing to prod FastAPI
-                    const res = await fetch(`${apiUrl}/api/v1/query`, {
+                    const res = await fetch(`${apiBaseUrl}/api/v1/query`, {
                         method: "POST",
-                        headers: { "Content-Type": "application/json" },
+                        headers: getJsonHeaders(),
                         body: JSON.stringify({ question: content })
                     });
 
-                    if (!res.ok) throw new Error("API Error");
+                    if (!res.ok) throw new Error(await parseError(res));
 
                     const data = await res.json();
 
@@ -72,7 +94,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                         content: data.answer,
                         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                         options: data.options?.length > 0 ? data.options : undefined,
-                        source: data.sources?.length > 0 ? data.sources[0].filename : undefined,
+                        source: data.sources?.length > 0 ? data.sources[0].source : undefined,
                         confidence: data.confidence_score > 0.9 ? "High" : (data.confidence_score > 0.7 ? "Medium" : "Low"),
                         masked: data.masked || false,
                     };
@@ -86,12 +108,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
                         messages: [...state.messages, botResponse],
                         isLoading: false,
                     }));
-                } catch (err) {
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : "Unknown API error";
                     set((state) => ({
                         messages: [...state.messages, {
                             id: (Date.now() + 1).toString(),
                             role: "bot",
-                            content: "Error communicating with the backend API.",
+                            content: `Unable to reach ClinIQ API. ${message}`,
                             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         }],
                         isLoading: false,
@@ -113,10 +136,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
         (async () => {
             try {
-                const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-                const res = await fetch(`${apiUrl}/api/v1/copilot/quick-help`, {
+                const res = await fetch(`${apiBaseUrl}/api/v1/copilot/quick-help`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers: getJsonHeaders(),
                     body: JSON.stringify({ 
                         question, 
                         context, 
@@ -125,7 +147,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     }),
                 });
 
-                if (!res.ok) throw new Error("Copilot Health API Error");
+                if (!res.ok) throw new Error(await parseError(res));
 
                 const data = await res.json();
 
@@ -142,12 +164,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     messages: [...state.messages, botResponse],
                     isLoading: false,
                 }));
-            } catch {
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Please try again or use the standard query.";
                 set((state) => ({
                     messages: [...state.messages, {
                         id: (Date.now() + 1).toString(),
                         role: "bot",
-                        content: "Unable to reach Copilot Health. Please try again or use the standard query.",
+                        content: `Unable to reach Copilot Health. ${message}`,
                         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     }],
                     isLoading: false,

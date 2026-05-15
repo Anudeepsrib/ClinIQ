@@ -72,7 +72,7 @@ export function PushToTalk({ onRecordingComplete }: PushToTalkProps) {
                 mediaRecorderRef.current.stop();
             }
         };
-    }, []);
+    }, [startRecording, stopRecording]);
 
     return (
         <div className="relative flex items-center justify-center">

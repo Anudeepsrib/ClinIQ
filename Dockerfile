@@ -11,7 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && pip wheel --no-cache-dir --wheel-dir /app/wheels -r requirements.txt
 
 # Stage 2: Final Runtime
 FROM python:3.11.9-slim-bookworm
@@ -31,13 +32,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy pre-built wheels and install
 COPY --from=builder /app/wheels /wheels
-RUN pip install --no-cache /wheels/*
+COPY requirements.txt .
+RUN python -m pip install --no-cache-dir --no-index --find-links=/wheels -r requirements.txt
 
 # Copy application code and set ownership
 COPY --chown=appuser:appuser . .
 
 # Create directory for vector db (if needed locally, though K8s should use PVCs)
-RUN mkdir -p data/vector_db && chown -R appuser:appuser data/vector_db && chmod 777 data/vector_db
+RUN mkdir -p data/vector_db tmp/uploads && chown -R appuser:appuser data tmp
 
 # Switch to non-root user
 USER appuser

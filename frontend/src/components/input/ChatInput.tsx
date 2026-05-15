@@ -38,7 +38,7 @@ export function ChatInput() {
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                     <div className="flex items-center gap-4">
-                        <PushToTalk onRecordingComplete={(blob: Blob) => console.log("Audio ready:", blob)} />
+                        <PushToTalk onRecordingComplete={() => undefined} />
                         <span className="text-[10px] font-mono text-slate-400 tracking-wider">
                             Hold the microphone to record.
                         </span>

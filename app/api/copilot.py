@@ -12,6 +12,11 @@ from app.schemas.copilot_models import CopilotHelpRequest, CopilotHelpResponse
 from app.security.rbac import get_current_user, require_role
 from app.chat.copilot_service import copilot_health_service
 from app.core.limiter import limiter
+from app.core.logging import redact_text
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/copilot", tags=["Copilot Health"])
 
@@ -37,4 +42,5 @@ async def copilot_quick_help(
         )
         return response
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Copilot Health error: {e}")
+        logger.exception("Copilot Health error: %s", redact_text(e))
+        raise HTTPException(status_code=500, detail="Copilot Health service unavailable")

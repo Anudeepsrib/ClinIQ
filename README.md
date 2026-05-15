@@ -5,7 +5,7 @@
   
   <p><b>"When building for healthcare, 'good enough' AI is dangerous. You need absolute, verifiable control."</b></p>
   
-  <p>A production-ready, HIPAA-compliant AI knowledge system built for velocity, safety, and scale — designed to bridge the gap between deep technical RAG orchestration and a clinical-grade user experience for small-to-mid-size hospitals.</p>
+  <p>A healthcare RAG demo and reference implementation with HIPAA-aware controls for safer local experimentation. Formal HIPAA compliance requires an organization-specific legal, security, and operational review.</p>
 
   <p>
     <a href="https://github.com/Anudeepsrib/ClinIQ">
@@ -18,12 +18,12 @@
       <img src="https://img.shields.io/github/license/Anudeepsrib/ClinIQ?style=for-the-badge" alt="License" />
     </a>
     <a href="#">
-      <img src="https://img.shields.io/badge/compliance-HIPAA--ready-purple?style=for-the-badge" alt="HIPAA Ready" />
+      <img src="https://img.shields.io/badge/security-HIPAA--aware_controls-purple?style=for-the-badge" alt="HIPAA-aware controls" />
     </a>
   </p>
 
   <p>
-    <a href="#-the-hipaa-first-promise">Security</a> •
+    <a href="#-security-posture">Security</a> •
     <a href="#-core-features">Features</a> •
     <a href="#-quick-start">Quick Start</a> •
     <a href="#%EF%B8%8F-tech-stack">Tech Stack</a> •
@@ -37,9 +37,9 @@
 
 ---
 
-## 🔒 The HIPAA-First Promise
+## 🔒 Security Posture
 
-ClinIQ is built on the philosophy that healthcare AI must be auditable, role-scoped, and zero-hallucination tolerant. Compliance is not an afterthought — it's the foundation.
+ClinIQ is built on the philosophy that healthcare AI should be auditable, role-scoped, and conservative when context is missing. This repository implements HIPAA-aware controls, but it is not certified HIPAA-compliant production software.
 
 <table>
   <tr>
@@ -48,18 +48,18 @@ ClinIQ is built on the philosophy that healthcare AI must be auditable, role-sco
       <p>Strict JWT-based role hierarchies (<code>Admin → Doctor → Nurse → Technician</code>) enforce data boundaries at every layer. Every query is scoped to the user's department.</p>
     </td>
     <td width="50%" valign="top">
-      <h3>🚫 Zero Hallucination Tolerance</h3>
-      <p>Every answer is hard-checked against retrieved medical documents. Un-grounded responses are explicitly blocked — never surfaced to clinical staff.</p>
+      <h3>🚫 Grounding Checks</h3>
+      <p>Answers are checked against retrieved documents where an LLM verifier is configured. Verification failures return conservative responses.</p>
     </td>
   </tr>
   <tr>
     <td width="50%" valign="top">
-      <h3>🔏 Inline PHI Masking</h3>
-      <p>Built-in visual redaction engine hides Protected Health Information mid-sentence based on JWT role. Powered by Microsoft Presidio.</p>
+      <h3>🔏 PHI Masking</h3>
+      <p>PHI-like values are anonymized before ingestion, logs, tracing metadata, and model calls where feasible. Powered by Microsoft Presidio with regex fallback.</p>
     </td>
     <td width="50%" valign="top">
       <h3>🏢 Department-Scoped Data</h3>
-      <p>Strict data isolation via Azure AI Search multi-indexes. Radiology staff never see pharmacy data. Configurable per-hospital department structure.</p>
+      <p>Department filters scope retrieval and document access. Production deployments should validate index-level isolation and operational controls.</p>
     </td>
   </tr>
 </table>
@@ -90,11 +90,11 @@ ClinIQ is built on the philosophy that healthcare AI must be auditable, role-sco
     </td>
     <td width="33%" valign="top">
       <b>📊 Full Observability</b><br/>
-      Deep LangSmith integration traces every graph node, LLM call, and retriever invocation. Complete audit trail for compliance reviews.
+      Optional LangSmith integration can trace graph nodes, LLM calls, and retriever invocations. External tracing is disabled by default to avoid PHI egress.
     </td>
     <td width="33%" valign="top">
       <b>☸️ Enterprise Deployment</b><br/>
-      Production-ready Helm charts for AKS/Kubernetes. HPA, resource quotas, non-root security contexts, and liveness/readiness probes included.
+      Deployment-oriented Helm charts for AKS/Kubernetes. HPA, resource quotas, non-root security contexts, and liveness/readiness probes included.
     </td>
   </tr>
 </table>
@@ -119,39 +119,80 @@ ClinIQ is built on the philosophy that healthcare AI must be auditable, role-sco
 
 ## 🚀 Quick Start
 
-Get up and running locally in under 5 minutes.
+ClinIQ can start locally without real API keys. Query synthesis and external vector search require provider credentials.
 
-### 1. Clone & Configure
+### 1. Clone
 ```bash
 git clone https://github.com/Anudeepsrib/ClinIQ.git
 cd ClinIQ
-
-cp .env.example .env
-# Configure your API keys in .env:
-#   OPENAI_API_KEY, GOOGLE_API_KEY, JWT_SECRET_KEY
 ```
 
-### 2. Backend Server
+### 2. Create a Python environment
 ```bash
+python -m venv .venv
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+# macOS/Linux
+source .venv/bin/activate
+
+python -m pip install --upgrade pip
 pip install -r requirements.txt
-uvicorn main:app --reload
 ```
 
-### 3. Frontend Interface
+### 3. Configure local environment
+```bash
+cp .env.example .env
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Paste the generated value into `JWT_SECRET_KEY` in `.env`. Leave external API keys and `ENABLE_EXTERNAL_TRACING=false` blank/off unless you intentionally want to call those services.
+
+To create a local demo admin, set `ALLOW_DEMO_ADMIN=true` and choose a unique `DEMO_ADMIN_PASSWORD` of at least 12 characters. Do not use the demo admin option in production.
+
+### 4. Backend server
+```bash
+uvicorn main:app --host 127.0.0.1 --port 8000
+```
+
+Health checks:
+```bash
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/ready
+```
+
+### 5. Frontend interface
 ```bash
 cd frontend
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to access the clinical interface.
 
-### 4. Enterprise Deployment (AKS / Kubernetes)
-ClinIQ ships with a production-ready Helm chart for Azure Kubernetes Service or any generic K8s cluster.
+### 6. Tests and checks
 ```bash
+python -m compileall .
+pip check
+pytest
+
+cd frontend
+npm run lint
+npm run build
+npm audit
+```
+
+### 7. Kubernetes deployment
+ClinIQ ships with a Helm chart for Azure Kubernetes Service or any generic K8s cluster. Create runtime secrets outside the chart, for example with Azure Key Vault CSI Driver, External Secrets Operator, or a manually managed Kubernetes Secret.
+```bash
+kubectl create namespace cliniq
+kubectl -n cliniq create secret generic cliniq-runtime \
+  --from-literal=JWT_SECRET_KEY='<strong-random-secret>' \
+  --from-literal=OPENAI_API_KEY='<optional-provider-key>'
+
 helm install cliniq ./aks/helm/cliniq \
   --namespace cliniq \
-  --create-namespace \
+  --set secrets.existingSecret=cliniq-runtime \
   -f ./aks/helm/cliniq/values.yaml
 ```
 
@@ -181,7 +222,7 @@ helm install cliniq ./aks/helm/cliniq \
         <li><b>Embeddings:</b> Google Gemini 2 (3072-dim, multimodal)</li>
         <li><b>Vector Search:</b> Azure AI Search (hybrid: vector + BM25)</li>
         <li><b>PHI Detection:</b> Microsoft Presidio</li>
-        <li><b>Observability:</b> LangSmith</li>
+        <li><b>Observability:</b> Optional LangSmith, disabled by default</li>
       </ul>
     </td>
   </tr>
@@ -249,25 +290,26 @@ Your instance can be customized entirely via the `.env` file:
 
 ```env
 # AI Provider
-OPENAI_API_KEY=sk-your-openai-api-key-here
+OPENAI_API_KEY=
 LLM_MODEL=gpt-4o
-EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_MODEL=multimodal-embedding-002
 
 # Google Gemini (Multimodal Embeddings)
-GOOGLE_API_KEY=your-google-api-key-here
+GOOGLE_API_KEY=
 EMBEDDING_PROVIDER=gemini
 EMBEDDING_DIMENSIONS=3072
 
 # JWT / Authentication
-JWT_SECRET_KEY=change-me-in-production-use-openssl-rand-hex-32
+JWT_SECRET_KEY=replace-with-a-local-random-secret
 JWT_ALGORITHM=HS256
 
 # Hospital Config (customize per deployment)
 HOSPITAL_DEPARTMENTS=radiology,pharmacy,nursing,laboratory,emergency,cardiology,oncology
 
 # LangSmith Observability (Optional)
-LANGCHAIN_TRACING_V2=true
-LANGCHAIN_API_KEY=ls__your-langsmith-api-key
+ENABLE_EXTERNAL_TRACING=false
+LANGCHAIN_TRACING_V2=false
+LANGCHAIN_API_KEY=
 LANGCHAIN_PROJECT=ClinIQ-Hospital-Beta
 ```
 
@@ -290,7 +332,7 @@ ClinIQ/
 │   └── src/            # Next.js 16 App Router (TypeScript)
 ├── aks/
 │   └── helm/           # Production Helm charts for Kubernetes
-├── data/               # Vector DB persistence & document store
+├── data/               # Local runtime data; DB/vector artifacts are ignored
 ├── tests/              # Unit & integration test suites
 ├── scripts/            # Setup & utility scripts
 └── main.py             # Application entrypoint
@@ -299,7 +341,7 @@ ClinIQ/
 ---
 
 ## ⚠️ Disclaimer
-**General Informational Use Only:** ClinIQ is an educational and research software project. It does **not** provide medical advice, diagnosis, or treatment protocols. Healthcare organizations deploying this system must conduct their own compliance review before clinical use. Users with specific medical conditions should consult a qualified healthcare professional.
+**General Informational Use Only:** ClinIQ is an educational and research software project. It does **not** provide medical advice, diagnosis, or treatment protocols. It implements HIPAA-aware controls, but it is not certified HIPAA-compliant production software. Healthcare organizations deploying this system must conduct their own compliance, privacy, security, and clinical safety review before use with real PHI or clinical workflows.
 
 ---
 

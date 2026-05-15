@@ -24,7 +24,7 @@ class LocalLLMAdapter:
         """Security check to ensure traffic stays on the local machine."""
         parsed = urlparse(url)
         hostname = parsed.hostname
-        if hostname not in ("localhost", "127.0.0.1"):
+        if hostname not in ("localhost", "127.0.0.1", "::1"):
             raise ValueError(
                 f"Security Violation: Local LLM traffic must be restricted to localhost. "
                 f"Attempted to connect to: {hostname}"

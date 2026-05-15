@@ -70,13 +70,30 @@ tolerations: []
 affinity: {}
 
 env:
+  ENVIRONMENT: "production"
   PYTHON_VERSION: "3.11.0"
   CHROMA_PERSIST_DIRECTORY: "/app/data/vector_db"
+  CORS_ALLOWED_ORIGINS: "https://api.cliniq.example.com"
+  CORS_ALLOW_CREDENTIALS: "true"
+  ENABLE_EXTERNAL_TRACING: "false"
+  LANGCHAIN_TRACING_V2: "false"
+  AZURE_SEARCH_ENABLED: "false"
+  CHAT_HISTORY_ENABLED: "false"
+
+secrets:
+  # Production deployments should provide this Secret out of band, for example
+  # with Azure Key Vault CSI Driver, External Secrets Operator, or sealed-secrets.
+  create: false
+  existingSecret: ""
 
 volumeMounts:
   - name: cliniq-data
     mountPath: /app/data
+  - name: cliniq-tmp
+    mountPath: /tmp
 
 volumes:
   - name: cliniq-data
     emptyDir: {} # For enterprise, replace with PersistentVolumeClaim pointing to Azure Disks or Azure Files
+  - name: cliniq-tmp
+    emptyDir: {}

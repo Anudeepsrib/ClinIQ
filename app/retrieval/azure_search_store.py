@@ -52,15 +52,22 @@ class AzureSearchVectorStore:
     """
 
     def __init__(self):
+        self.enabled = settings.AZURE_SEARCH_ENABLED
         self.endpoint = settings.AZURE_SEARCH_ENDPOINT
-        self.credential = AzureKeyCredential(settings.AZURE_SEARCH_API_KEY)
         self.index_prefix = settings.AZURE_SEARCH_INDEX_PREFIX
         self.embedding_fn = gemini_embeddings
+        self._search_clients: Dict[str, SearchClient] = {}
+        self._index_client: Optional[SearchIndexClient] = None
+
+        if not self.enabled:
+            logger.info("Azure Search vector store disabled")
+            return
+
+        self.credential = AzureKeyCredential(settings.AZURE_SEARCH_API_KEY)
         self._index_client = SearchIndexClient(
             endpoint=self.endpoint,
             credential=self.credential,
         )
-        self._search_clients: Dict[str, SearchClient] = {}
 
         for dept in settings.departments_list:
             self._ensure_index(dept)
@@ -80,6 +87,9 @@ class AzureSearchVectorStore:
 
     def _ensure_index(self, department: str):
         """Create the search index if it doesn't exist."""
+        if not self.enabled or self._index_client is None:
+            return
+
         index_name = self._index_name(department)
         try:
             self._index_client.get_index(index_name)
@@ -159,6 +169,9 @@ class AzureSearchVectorStore:
 
     def add_chunks(self, chunks: List[ProcessedChunk], department: str, version: int = 1):
         """Batch upload chunks to a department's index using merge_or_upload."""
+        if not self.enabled:
+            logger.info("Azure Search disabled; skipping add_chunks for %s", department)
+            return
         if not chunks:
             return
 
@@ -228,12 +241,17 @@ class AzureSearchVectorStore:
 
     def delete_document_vectors(self, source_filename: str, department: str):
         """Delete all vectors for a specific source file from a department index."""
+        if not self.enabled:
+            logger.info("Azure Search disabled; skipping vector delete for %s", source_filename)
+            return
+
         department = department.lower()
         client = self._get_search_client(department)
+        escaped_source = source_filename.replace("'", "''")
 
         results = client.search(
             search_text="*",
-            filter=f"source eq '{source_filename}'",
+            filter=f"source eq '{escaped_source}'",
             select=["id"],
             top=1000,
         )
@@ -276,6 +294,10 @@ class AzureSearchVectorStore:
         Fan-out hybrid search (vector + BM25) across department indexes.
         Results are merged and sorted by score (best first).
         """
+        if not self.enabled:
+            logger.info("Azure Search disabled; returning no retrieval results")
+            return []
+
         query_embedding = self.embedding_fn.embed_query(query)
         all_results: List[RetrievalResult] = []
 
@@ -335,6 +357,9 @@ class AzureSearchVectorStore:
 
     def get_collection_stats(self) -> Dict[str, int]:
         """Return document count per department index."""
+        if not self.enabled:
+            return {dept: 0 for dept in settings.departments_list}
+
         stats = {}
         for dept in settings.departments_list:
             try:

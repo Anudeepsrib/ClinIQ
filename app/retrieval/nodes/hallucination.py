@@ -89,9 +89,26 @@ def hallucination_check(state: GraphState) -> Dict[str, Any]:
     logger.info("---HALLUCINATION CHECK---")
     documents = state["documents"]
     generation = state.get("generation", "")
+    max_retries = getattr(settings, "MAX_QUERY_RETRIES", 3)
 
     if not generation:
-        logger.warning("  No generation to check — skipping hallucination grading")
+        logger.warning("  No generation to check — failing closed")
+        return {
+            "hallucination_score": "no",
+            "generation": "I could not verify an answer against retrieved documents.",
+            "retry_count": max_retries,
+        }
+
+    if not documents:
+        logger.warning("  No documents available for hallucination grading — failing closed")
+        return {
+            "hallucination_score": "no",
+            "generation": "I could not verify an answer because no supporting documents were retrieved.",
+            "retry_count": max_retries,
+        }
+
+    if not settings.OPENAI_API_KEY:
+        logger.warning("OPENAI_API_KEY missing — accepting extractive fallback as grounded")
         return {"hallucination_score": "yes"}
 
     # Format documents into a single text block
@@ -116,12 +133,25 @@ def hallucination_check(state: GraphState) -> Dict[str, Any]:
 
     chain = prompt | structured_llm
 
-    result = chain.invoke({"documents": docs_text, "generation": generation})
-    score = result.binary_score.lower()
+    try:
+        result = chain.invoke({"documents": docs_text, "generation": generation})
+        score = result.binary_score.lower()
+    except Exception as exc:
+        logger.error("Hallucination grader failed closed: %s", exc)
+        return {
+            "hallucination_score": "no",
+            "generation": "I could not verify this answer against the retrieved documents.",
+            "retry_count": max_retries,
+        }
 
     if score == "yes":
         logger.info("  ✓ Answer is GROUNDED in retrieved context")
     else:
         logger.warning("  ✗ Answer may contain HALLUCINATED content")
+        if state.get("retry_count", 0) >= max_retries:
+            return {
+                "hallucination_score": "no",
+                "generation": "I could not verify this answer against the retrieved documents.",
+            }
 
     return {"hallucination_score": score}

@@ -2,6 +2,7 @@
 API routes — Auth, ingestion, and query endpoints with RBAC enforcement.
 """
 
+import logging
 from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
 from typing import List, Optional
 from app.schemas.models import (
@@ -21,11 +22,15 @@ from app.chat.chat_history_store import chat_history_store
 from app.retrieval.graph import app_graph
 from app.core.limiter import limiter
 from app.core.config import settings
-from app.security.auth import user_db, create_access_token, ROLE_HIERARCHY
+from app.core.logging import redact_text
+from app.security.auth import user_db, create_access_token
+from app.security.pii import pii_manager
 from app.security.rbac import get_current_user, require_role, get_user_departments
+from app.security.uploads import read_limited_upload, sanitize_filename, validate_upload_metadata
 from app.observability.tracing import build_langsmith_config, create_feedback as ls_create_feedback
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # --- Include sub-routers ---
 from app.api.copilot import router as copilot_router
@@ -37,6 +42,7 @@ router.include_router(copilot_router)
 # =========================================================================
 
 @router.post("/auth/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(request: Request, body: LoginRequest):
     """Authenticate and receive a JWT token."""
     user = user_db.authenticate(body.username, body.password)
@@ -56,6 +62,7 @@ async def login(request: Request, body: LoginRequest):
 
 
 @router.post("/auth/register", response_model=UserOut)
+@limiter.limit("10/minute")
 async def register_user(
     request: Request,
     body: UserCreate,
@@ -152,12 +159,14 @@ async def ingest_document(
             detail=f"Invalid department '{department}'. Valid: {settings.departments_list}",
         )
 
+    safe_filename = validate_upload_metadata(file)
+
     try:
-        content = await file.read()
+        content = await read_limited_upload(file)
         username = user["username"]
         result = await upsert_document(
             file_bytes=content,
-            filename=file.filename,
+            filename=safe_filename,
             content_type=file.content_type,
             department=department,
             user=username
@@ -165,9 +174,11 @@ async def ingest_document(
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Error ingesting file: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error ingesting file %s: %s", safe_filename, redact_text(e))
+        raise HTTPException(status_code=500, detail="Failed to ingest document")
 
 
 @router.get("/documents/{department}", response_model=List[DocumentInfo])
@@ -183,6 +194,7 @@ async def list_documents(department: str, user: dict = Depends(get_current_user)
 @router.delete("/documents/{department}/{filename}")
 async def delete_document_ep(department: str, filename: str, admin: dict = Depends(require_role("admin"))):
     """Admin-only: soft-delete a document and purge vectors."""
+    filename = sanitize_filename(filename)
     success = await upsert_delete_document(filename, department)
     if not success:
         raise HTTPException(status_code=404, detail="Document not found")
@@ -193,6 +205,7 @@ async def delete_document_ep(department: str, filename: str, admin: dict = Depen
 async def get_document_history(department: str, filename: str, user: dict = Depends(get_current_user)):
     """Get full version history (RBAC enforced)."""
     department = department.lower()
+    filename = sanitize_filename(filename)
     allowed = get_user_departments(user)
     if department not in allowed:
         raise HTTPException(status_code=403, detail="Unauthorized")
@@ -221,7 +234,12 @@ async def query_documents(
 
         # If user specified departments, intersect with allowed
         if request_body.departments:
-            search_depts = [d for d in request_body.departments if d in allowed]
+            requested_departments = [d.lower() for d in request_body.departments]
+            invalid_departments = [d for d in requested_departments if d not in settings.departments_list]
+            if invalid_departments:
+                raise HTTPException(status_code=400, detail="Invalid department requested")
+
+            search_depts = [d for d in requested_departments if d in allowed]
             if not search_depts:
                 raise HTTPException(
                     status_code=403,
@@ -229,6 +247,8 @@ async def query_documents(
                 )
         else:
             search_depts = allowed
+
+        sanitized_question = pii_manager.anonymize(request_body.question)
 
         # Build LangSmith config with hospital-specific metadata & tags
         langsmith_config = build_langsmith_config(
@@ -239,7 +259,7 @@ async def query_documents(
 
         # Build graph input with RBAC context
         inputs = {
-            "question": request_body.question,
+            "question": sanitized_question,
             "role": user["role"],
             "departments": search_depts,
             "user_id": user["username"],
@@ -280,7 +300,6 @@ async def query_documents(
 
         # De-anonymize for doctors
         if user["role"] == "doctor":
-            from app.security.pii import pii_manager
             answer = pii_manager.deanonymize(answer)
             for doc in docs:
                 doc.content = pii_manager.deanonymize(doc.content)
@@ -292,7 +311,7 @@ async def query_documents(
                     session_id=request_body.session_id,
                     user_id=user["username"],
                     role="user",
-                    content=request_body.question,
+                    content=sanitized_question,
                     department=search_depts[0] if search_depts else "general"
                 )
                 chat_history_store.append_message(
@@ -303,7 +322,7 @@ async def query_documents(
                     department=search_depts[0] if search_depts else "general"
                 )
             except Exception as hist_err:
-                print(f"Error appending chat history: {hist_err}")
+                logger.warning("Error appending chat history: %s", redact_text(hist_err))
 
         return QueryResponse(
             answer=answer,
@@ -315,8 +334,8 @@ async def query_documents(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error processing query: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("Error processing query: %s", redact_text(e))
+        raise HTTPException(status_code=500, detail="Failed to process query")
 
 
 # =========================================================================
@@ -324,6 +343,7 @@ async def query_documents(
 # =========================================================================
 
 @router.post("/feedback", response_model=FeedbackResponse)
+@limiter.limit("20/minute")
 async def submit_feedback(
     request: Request,
     body: FeedbackRequest,
@@ -360,7 +380,11 @@ async def submit_feedback(
 @router.post("/chat/sessions", response_model=CreateSessionResponse)
 async def create_chat_session(req: CreateSessionRequest, user: dict = Depends(get_current_user)):
     """Create a new chat session."""
-    session_id = chat_history_store.create_session(user["username"], req.department)
+    department = (req.department or "general").lower()
+    allowed = get_user_departments(user)
+    if department not in allowed:
+        raise HTTPException(status_code=403, detail="Unauthorized department")
+    session_id = chat_history_store.create_session(user["username"], department)
     return {"session_id": session_id, "status": "created"}
 
 

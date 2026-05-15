@@ -21,6 +21,8 @@ from typing import Optional
 import httpx
 
 from app.core.config import settings
+from app.core.logging import redact_text
+from app.security.pii import pii_manager
 from app.schemas.copilot_models import CopilotHelpRequest, CopilotHelpResponse, CopilotSource
 
 logger = logging.getLogger(__name__)
@@ -81,7 +83,7 @@ class CopilotHealthService:
             )
 
         except Exception as e:
-            logger.error(f"Copilot Health service error: {e}")
+            logger.error("Copilot Health service error: %s", redact_text(e))
             return CopilotHelpResponse(
                 answer=(
                     "I'm currently unable to reach the medical intelligence service. "
@@ -107,9 +109,12 @@ class CopilotHealthService:
         # Prioritize request-level provider override, fallback to global settings
         active_provider = provider or settings.LLM_PROVIDER
 
-        user_prompt = question
-        if context:
-            user_prompt = f"Clinical context: {context}\n\nQuestion: {question}"
+        safe_question = pii_manager.anonymize(question)
+        safe_context = pii_manager.anonymize(context) if context else None
+
+        user_prompt = safe_question
+        if safe_context:
+            user_prompt = f"Clinical context: {safe_context}\n\nQuestion: {safe_question}"
         if department:
             user_prompt += f"\n\n(Department: {department}, Role: {user_role})"
 

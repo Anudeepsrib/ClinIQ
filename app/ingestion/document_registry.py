@@ -21,12 +21,16 @@ import sqlite3
 import hashlib
 import os
 import logging
+import re
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join("data", "document_registry.db")
+DB_PATH = os.path.join(os.path.dirname(settings.USERS_DB_PATH) or "data", "document_registry.db")
+SAFE_DOC_ID_RE = re.compile(r"[^a-z0-9_.-]+")
 
 
 class DocumentRegistry:
@@ -75,7 +79,8 @@ class DocumentRegistry:
 
     @staticmethod
     def build_doc_id(department: str, filename: str) -> str:
-        return f"{department.lower()}_{filename}"
+        raw_id = f"{department.lower()}_{filename.lower()}"
+        return SAFE_DOC_ID_RE.sub("_", raw_id)
 
     def lookup(self, doc_id: str) -> Optional[Dict[str, Any]]:
         """Return the latest active record for a doc_id, or None."""

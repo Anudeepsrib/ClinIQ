@@ -1,9 +1,15 @@
-from ragas.testset.generator import TestsetGenerator
-from ragas.testset.evolutions import simple, reasoning, multi_context
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import DirectoryLoader
 from app.core.config import settings
-import os
+
+try:
+    from ragas.testset.evolutions import multi_context, reasoning, simple
+    from ragas.testset.generator import TestsetGenerator
+except ImportError as exc:
+    raise SystemExit(
+        "Optional RAGAS evaluation dependencies are not installed. "
+        "Install a patched RAGAS release before running this script."
+    ) from exc
 
 # Initialize models
 generator_llm = ChatOpenAI(model="gpt-3.5-turbo-16k")
