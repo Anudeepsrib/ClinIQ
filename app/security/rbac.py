@@ -11,18 +11,19 @@ Usage in routes:
         ...
 """
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import List, Optional
-import jwt as pyjwt
+from typing import Annotated, List
 
-from app.security.auth import decode_access_token, user_db, ROLE_HIERARCHY
+import jwt as pyjwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.security.auth import ROLE_HIERARCHY, decode_access_token, user_db
 
 security = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security)],
 ) -> dict:
     """
     Decode JWT from Authorization header, return full user dict.
@@ -39,10 +40,10 @@ async def get_current_user(
         username: str = payload.get("sub")
         if not username or payload.get("typ") != "access":
             raise HTTPException(status_code=401, detail="Invalid token payload")
-    except pyjwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired. Please log in again.")
-    except pyjwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
+    except pyjwt.ExpiredSignatureError as exc:
+        raise HTTPException(status_code=401, detail="Token expired. Please log in again.") from exc
+    except pyjwt.PyJWTError as exc:
+        raise HTTPException(status_code=401, detail="Invalid authentication token") from exc
 
     user = user_db.get_user(username)
     if not user or not user["is_active"]:
@@ -54,7 +55,7 @@ def require_role(min_role: str):
     """Dependency: require the user to have at least `min_role` level."""
     min_level = ROLE_HIERARCHY.get(min_role, 0)
 
-    async def _check(user: dict = Depends(get_current_user)):
+    async def _check(user: Annotated[dict, Depends(get_current_user)]):
         user_level = ROLE_HIERARCHY.get(user["role"], 0)
         if user_level < min_level:
             raise HTTPException(
@@ -69,7 +70,7 @@ def require_role(min_role: str):
 def require_department(department: str):
     """Dependency: require the user to have access to a specific department."""
 
-    async def _check(user: dict = Depends(get_current_user)):
+    async def _check(user: Annotated[dict, Depends(get_current_user)]):
         if user["role"] == "admin":
             return user  # admin bypasses
         if department not in user.get("departments", []):

@@ -10,11 +10,12 @@ Stores and retrieves chat sessions with full RBAC isolation:
 Backed by a ChromaDB instance hosted in Azure (Container App / VM).
 """
 
-import chromadb
-import uuid
 import logging
+import uuid
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List
+
+import chromadb
 
 from app.core.config import settings
 
@@ -218,7 +219,7 @@ class ChatHistoryStore:
             return []
 
         messages = []
-        for doc, meta in zip(results["documents"], results["metadatas"]):
+        for doc, meta in zip(results["documents"], results["metadatas"], strict=False):
             messages.append(ChatMessage(
                 role=meta["role"],
                 content=doc,
@@ -252,7 +253,7 @@ class ChatHistoryStore:
             return []
 
         messages = []
-        for doc, meta in zip(results["documents"][0], results["metadatas"][0]):
+        for doc, meta in zip(results["documents"][0], results["metadatas"][0], strict=False):
             messages.append(ChatMessage(
                 role=meta["role"],
                 content=doc,
@@ -279,7 +280,7 @@ class ChatHistoryStore:
             return []
 
         sessions: Dict[str, Dict[str, Any]] = {}
-        for doc, meta in zip(results["documents"], results["metadatas"]):
+        for doc, meta in zip(results["documents"], results["metadatas"], strict=False):
             sid = meta["session_id"]
             if sid not in sessions:
                 sessions[sid] = {
@@ -342,7 +343,7 @@ class ChatHistoryStore:
             return []
 
         messages = []
-        for doc, meta in zip(results["documents"], results["metadatas"]):
+        for doc, meta in zip(results["documents"], results["metadatas"], strict=False):
             messages.append(ChatMessage(
                 role=meta["role"],
                 content=doc,

@@ -1,6 +1,6 @@
-from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Any, Dict, List, Literal, Optional
 
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Auth / User schemas
@@ -110,6 +110,7 @@ class QueryRequest(BaseModel):
     question: str
     departments: Optional[List[str]] = None  # filter to specific departments
     session_id: Optional[str] = None         # enable chat history appending
+    provider: Optional[Literal["google_gemma", "azure_openai", "ollama", "vllm"]] = None
 
 
 class QueryResponse(BaseModel):

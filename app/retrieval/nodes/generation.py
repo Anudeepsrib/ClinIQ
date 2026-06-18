@@ -8,9 +8,12 @@ from typing import Any, Dict
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 
-from app.core.config import settings
+from app.chat.llm_provider import (
+    get_chat_model,
+    is_llm_configured,
+    missing_llm_configuration_message,
+)
 from app.retrieval.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -90,6 +93,7 @@ def generate(state: GraphState) -> Dict[str, Any]:
     question = state["question"]
     documents = state["documents"]
     role = state.get("role", "viewer")
+    llm_provider = state.get("llm_provider")
 
     if not documents:
         logger.warning("  No documents available — returning fallback answer")
@@ -116,8 +120,11 @@ def generate(state: GraphState) -> Dict[str, Any]:
 
     role_instruction = ROLE_INSTRUCTIONS.get(role, ROLE_INSTRUCTIONS["viewer"])
 
-    if not settings.OPENAI_API_KEY:
-        logger.warning("OPENAI_API_KEY missing — returning extractive fallback answer")
+    if not is_llm_configured(llm_provider):
+        logger.warning(
+            "%s — returning extractive fallback answer",
+            missing_llm_configuration_message(llm_provider),
+        )
         excerpts = []
         for i, doc in enumerate(documents[:3]):
             excerpt = doc.content[:500].strip()
@@ -131,11 +138,7 @@ def generate(state: GraphState) -> Dict[str, Any]:
         }
 
     prompt = ChatPromptTemplate.from_template(RAG_TEMPLATE)
-    llm = ChatOpenAI(
-        model=settings.LLM_MODEL,
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY,
-    )
+    llm = get_chat_model(provider=llm_provider, temperature=0)
 
     rag_chain = prompt | llm | StrOutputParser()
 

@@ -20,8 +20,12 @@ class Settings(BaseSettings):
     EMBEDDING_DIMENSIONS: int = 3072  # Gemini 2 / OpenAI Large (MRL: 3072/1536/768)
 
     # --- LLM Provider Selection ---
-    LLM_PROVIDER: str = "azure_openai"  # "azure_openai" | "ollama" | "vllm"
-    LLM_MODEL: str = "gpt-4o"
+    LLM_PROVIDER: str = "google_gemma"  # "google_gemma" | "azure_openai" | "ollama" | "vllm"
+    # Backward-compatible model override for whichever provider is configured as LLM_PROVIDER.
+    LLM_MODEL: str = "gemma-4-26b-a4b-it"
+    GOOGLE_GEMMA_MODEL: str = "gemma-4-26b-a4b-it"
+    OPENAI_LLM_MODEL: str = "gpt-4o"
+    GEMMA_THINKING_LEVEL: Literal["", "minimal", "low", "medium", "high"] = "high"
     LOCAL_LLM_MODEL: str = "gemma4:e4b"
     LOCAL_LLM_MAX_CTX: int = 32768
 
@@ -140,8 +144,10 @@ class Settings(BaseSettings):
         if self.AZURE_SEARCH_ENABLED and (not self.AZURE_SEARCH_ENDPOINT or not self.AZURE_SEARCH_API_KEY):
             raise ValueError("Azure Search requires AZURE_SEARCH_ENDPOINT and AZURE_SEARCH_API_KEY.")
 
-        if self.LLM_PROVIDER not in {"azure_openai", "ollama", "vllm"}:
-            raise ValueError("LLM_PROVIDER must be one of: azure_openai, ollama, vllm.")
+        if self.LLM_PROVIDER not in {"google_gemma", "azure_openai", "ollama", "vllm"}:
+            raise ValueError(
+                "LLM_PROVIDER must be one of: google_gemma, azure_openai, ollama, vllm."
+            )
 
         if self.EMBEDDING_PROVIDER not in {"gemini", "openai"}:
             raise ValueError("EMBEDDING_PROVIDER must be one of: gemini, openai.")

@@ -1,4 +1,6 @@
 import pandas as pd
+
+from app.core.config import settings
 from app.retrieval.graph import app_graph
 
 try:
@@ -29,11 +31,23 @@ def evaluate_rag():
 
     for query in questions:
         # Invoke RAG pipeline
-        result = app_graph.invoke({"question": query})
-        
+        result = app_graph.invoke({
+            "question": query,
+            "role": "viewer",
+            "departments": ["general"],
+            "user_id": "evaluation",
+            "llm_provider": settings.LLM_PROVIDER,
+            "retry_count": 0,
+            "hallucination_score": "",
+            "query_transformations": [],
+            "metadata": {},
+            "clarification_needed": False,
+            "clarification_options": [],
+        })
+
         # Extract answer and retrieved contexts
         answer = result["generation"]
-        retrieved_docs = [doc.page_content for doc in result["documents"]]
+        retrieved_docs = [doc.content for doc in result["documents"]]
         
         answers.append(answer)
         contexts.append(retrieved_docs)

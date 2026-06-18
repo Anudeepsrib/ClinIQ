@@ -14,10 +14,13 @@ import logging
 from typing import Any, Dict, List
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
+from app.chat.llm_provider import (
+    get_chat_model,
+    is_llm_configured,
+    missing_llm_configuration_message,
+)
 from app.retrieval.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -108,19 +111,19 @@ def clarification_check(state: GraphState) -> Dict[str, Any]:
     question    = state["question"]
     departments = state.get("departments", [])
     role        = state.get("role", "viewer")
+    llm_provider = state.get("llm_provider")
 
-    if not settings.OPENAI_API_KEY:
-        logger.warning("OPENAI_API_KEY missing — skipping LLM clarification check")
+    if not is_llm_configured(llm_provider):
+        logger.warning(
+            "%s — skipping LLM clarification check",
+            missing_llm_configuration_message(llm_provider),
+        )
         return {
             "clarification_needed": False,
             "clarification_options": [],
         }
 
-    llm = ChatOpenAI(
-        model=settings.LLM_MODEL,
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY,
-    )
+    llm = get_chat_model(provider=llm_provider, temperature=0)
     structured_llm = llm.with_structured_output(ClarificationResult)
 
     prompt = ChatPromptTemplate.from_messages([

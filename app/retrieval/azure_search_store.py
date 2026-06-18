@@ -14,29 +14,27 @@ Architecture:
 """
 
 import logging
-import os
 from datetime import datetime, timezone
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
 from azure.search.documents.indexes import SearchIndexClient
 from azure.search.documents.indexes.models import (
-    SearchIndex,
+    HnswAlgorithmConfiguration,
+    SearchableField,
     SearchField,
     SearchFieldDataType,
-    SimpleField,
-    SearchableField,
-    VectorSearch,
-    HnswAlgorithmConfiguration,
-    VectorSearchProfile,
     SearchIndex,
+    SimpleField,
+    VectorSearch,
+    VectorSearchProfile,
 )
 from azure.search.documents.models import VectorizedQuery
 
+from app.core.config import settings
 from app.retrieval.gemini_embeddings import gemini_embeddings
 from app.schemas.models import ProcessedChunk, RetrievalResult
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -207,13 +205,13 @@ class AzureSearchVectorStore:
         if text_indices:
             text_contents = [texts[i] for i in text_indices]
             text_embeddings = self.embedding_fn.embed_documents(text_contents)
-            for idx, emb in zip(text_indices, text_embeddings):
+            for idx, emb in zip(text_indices, text_embeddings, strict=False):
                 embeddings[idx] = emb
 
         now = datetime.now(timezone.utc).isoformat()
 
         documents = []
-        for chunk, embedding in zip(chunks, embeddings):
+        for chunk, embedding in zip(chunks, embeddings, strict=False):
             doc_id = f"{department}_{chunk.source}_{chunk.chunk_index}"
             doc_id = doc_id.replace(" ", "_").replace(".", "_")
 

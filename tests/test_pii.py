@@ -1,9 +1,6 @@
-import pytest
-import os
-import sys
-sys.path.append(os.getcwd())
-from app.security.vault import vault
 from app.security.pii import pii_manager
+from app.security.vault import vault
+
 
 def test_vault_persistence():
     vault.store("test_token_1", "Secret Value")
@@ -31,13 +28,3 @@ def test_pii_flow():
     
     # Assert restoration
     assert restored == original_text
-
-if __name__ == "__main__":
-    # verification script style execution
-    try:
-        test_vault_persistence()
-        test_pii_flow()
-        print("\n✅ All Tests Passed!")
-    except AssertionError as e:
-        print(f"\n❌ Test Failed: {e}")
-        exit(1)

@@ -1,5 +1,5 @@
-import sqlite3
 import os
+import sqlite3
 from contextlib import contextmanager
 
 from app.core.config import settings

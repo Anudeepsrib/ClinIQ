@@ -1,6 +1,5 @@
 """Chat-specific Pydantic models for API request/response serialization."""
 
-from typing import List, Optional
 from pydantic import BaseModel
 
 

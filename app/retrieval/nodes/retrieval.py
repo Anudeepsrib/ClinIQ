@@ -6,8 +6,8 @@ vector store and returns matching documents.
 import logging
 from typing import Any, Dict
 
-from app.retrieval.state import GraphState
 from app.retrieval.azure_search_store import azure_search_store
+from app.retrieval.state import GraphState
 
 logger = logging.getLogger(__name__)
 

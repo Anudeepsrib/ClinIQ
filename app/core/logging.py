@@ -4,7 +4,6 @@ import logging
 import re
 from typing import Any
 
-
 SECRET_PATTERNS = [
     re.compile(r"(sk-[A-Za-z0-9_\-]{12,})"),
     re.compile(r"(AIza[0-9A-Za-z_\-]{20,})"),

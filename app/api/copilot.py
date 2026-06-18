@@ -1,24 +1,26 @@
 """
-Copilot Health API router — Quick-help medical intelligence for clinical staff.
+Clinical intelligence API router — Quick-help medical intelligence for staff.
 
 Exposes a POST endpoint that allows doctors and nurses to get fast,
 evidence-based answers to clinical questions through the ClinIQ interface,
-powered by Microsoft Copilot Health (bridged via Azure OpenAI).
+powered by the configured Gemma/OpenAI provider.
 """
+
+import logging
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from app.schemas.copilot_models import CopilotHelpRequest, CopilotHelpResponse
-from app.security.rbac import get_current_user, require_role
 from app.chat.copilot_service import copilot_health_service
 from app.core.limiter import limiter
 from app.core.logging import redact_text
-
-import logging
+from app.schemas.copilot_models import CopilotHelpRequest, CopilotHelpResponse
+from app.security.rbac import require_role
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/copilot", tags=["Copilot Health"])
+router = APIRouter(prefix="/copilot", tags=["Clinical Intelligence"])
+NurseUser = Annotated[dict, Depends(require_role("nurse"))]
 
 
 @router.post("/quick-help", response_model=CopilotHelpResponse)
@@ -26,10 +28,10 @@ router = APIRouter(prefix="/copilot", tags=["Copilot Health"])
 async def copilot_quick_help(
     request: Request,
     body: CopilotHelpRequest,
-    user: dict = Depends(require_role("nurse")),  # nurse-level and above (nurse, doctor, admin)
+    user: NurseUser,  # nurse-level and above (nurse, doctor, admin)
 ):
     """
-    Get quick medical intelligence from Copilot Health.
+    Get quick medical intelligence from the configured provider.
 
     Accessible to nurses, doctors, and admins. Returns evidence-based
     clinical information with source citations and a safety disclaimer.
@@ -42,5 +44,8 @@ async def copilot_quick_help(
         )
         return response
     except Exception as e:
-        logger.exception("Copilot Health error: %s", redact_text(e))
-        raise HTTPException(status_code=500, detail="Copilot Health service unavailable")
+        logger.exception("Clinical intelligence error: %s", redact_text(e))
+        raise HTTPException(
+            status_code=500,
+            detail="Clinical intelligence service unavailable",
+        ) from e

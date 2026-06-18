@@ -22,11 +22,11 @@ interface ChatState {
     messages: Message[];
     activeFocus: ActiveFocus | null;
     isLoading: boolean;
-    llmProvider: "azure_openai" | "ollama" | "vllm";
+    llmProvider: "google_gemma" | "azure_openai" | "ollama" | "vllm";
     addMessage: (content: string, role?: "user" | "bot") => void;
     copilotQuickHelp: (question: string, context?: string, department?: string) => void;
     setFocus: (focus: ActiveFocus | null) => void;
-    setLlmProvider: (provider: "azure_openai" | "ollama" | "vllm") => void;
+    setLlmProvider: (provider: "google_gemma" | "azure_openai" | "ollama" | "vllm") => void;
 }
 
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -56,7 +56,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     messages: [],
     activeFocus: null,
     isLoading: false,
-    llmProvider: "azure_openai",
+    llmProvider: "google_gemma",
 
     setFocus: (focus) => set({ activeFocus: focus }),
     
@@ -81,7 +81,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     const res = await fetch(`${apiBaseUrl}/api/v1/query`, {
                         method: "POST",
                         headers: getJsonHeaders(),
-                        body: JSON.stringify({ question: content })
+                        body: JSON.stringify({ question: content, provider: get().llmProvider })
                     });
 
                     if (!res.ok) throw new Error(await parseError(res));
@@ -128,7 +128,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         const userMsg: Message = {
             id: Date.now().toString(),
             role: "user",
-            content: `🩺 [Copilot Health] ${question}`,
+            content: `[Clinical Intel] ${question}`,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
 
@@ -154,9 +154,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                 const botResponse: Message = {
                     id: (Date.now() + 1).toString(),
                     role: "bot",
-                    content: data.answer + (data.disclaimer ? `\n\n⚠️ ${data.disclaimer}` : ""),
+                    content: data.answer + (data.disclaimer ? `\n\n${data.disclaimer}` : ""),
                     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    source: data.sources?.[0]?.title || "Microsoft Copilot Health",
+                    source: data.sources?.[0]?.title || "Clinical Intelligence",
                     confidence: data.confidence === "high" ? "High" : (data.confidence === "medium" ? "Medium" : "Low"),
                 };
 
@@ -170,7 +170,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     messages: [...state.messages, {
                         id: (Date.now() + 1).toString(),
                         role: "bot",
-                        content: `Unable to reach Copilot Health. ${message}`,
+                        content: `Unable to reach Clinical Intelligence. ${message}`,
                         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     }],
                     isLoading: false,

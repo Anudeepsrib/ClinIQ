@@ -1,5 +1,7 @@
-from typing import List, Dict, Any, Optional
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from typing import Any, Dict, List
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
 
 class ContentChunker:
     def __init__(self, chunk_size: int = 1000, chunk_overlap: int = 100):

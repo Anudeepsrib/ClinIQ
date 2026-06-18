@@ -9,3 +9,13 @@ services:
         value: 3.11.0
       - key: OPENAI_API_KEY
         sync: false
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: google_gemma
+      - key: LLM_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: GOOGLE_GEMMA_MODEL
+        value: gemma-4-26b-a4b-it
+      - key: OPENAI_LLM_MODEL
+        value: gpt-4o

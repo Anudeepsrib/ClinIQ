@@ -7,10 +7,13 @@ import logging
 from typing import Any, Dict
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
-from app.core.config import settings
+from app.chat.llm_provider import (
+    get_chat_model,
+    is_llm_configured,
+    missing_llm_configuration_message,
+)
 from app.retrieval.state import GraphState
 from app.schemas.models import RetrievalResult
 
@@ -74,20 +77,20 @@ def grade_documents(state: GraphState) -> Dict[str, Any]:
     logger.info("---CHECK DOCUMENT RELEVANCE---")
     question = state["question"]
     documents = state["documents"]
+    llm_provider = state.get("llm_provider")
 
     if not documents:
         return {"documents": [], "question": question}
 
-    if not settings.OPENAI_API_KEY:
-        logger.warning("OPENAI_API_KEY missing — skipping LLM document grading")
+    if not is_llm_configured(llm_provider):
+        logger.warning(
+            "%s — skipping LLM document grading",
+            missing_llm_configuration_message(llm_provider),
+        )
         return {"documents": documents, "question": question}
 
     # LLM with structured output
-    llm = ChatOpenAI(
-        model=settings.LLM_MODEL,
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY,
-    )
+    llm = get_chat_model(provider=llm_provider, temperature=0)
     structured_llm_grader = llm.with_structured_output(GradeDocuments)
 
     grade_prompt = ChatPromptTemplate.from_messages(

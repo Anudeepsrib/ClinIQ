@@ -9,8 +9,8 @@ import io
 import logging
 from typing import List
 
-from app.schemas.models import ProcessedChunk
 from app.ingestion.chunker import ContentChunker
+from app.schemas.models import ProcessedChunk
 
 logger = logging.getLogger(__name__)
 chunker = ContentChunker()
@@ -37,8 +37,8 @@ def parse_image(file_content: bytes, filename: str) -> List[ProcessedChunk]:
     ocr_text = ""
 
     try:
-        from PIL import Image
         import pytesseract
+        from PIL import Image
         image = Image.open(io.BytesIO(file_content))
         ocr_text = pytesseract.image_to_string(image).strip()
     except ImportError:
@@ -141,8 +141,8 @@ def parse_dicom(file_content: bytes, filename: str) -> List[ProcessedChunk]:
     image_bytes = None
     try:
         if hasattr(ds, "pixel_array"):
-            from PIL import Image
             import numpy as np
+            from PIL import Image
             arr = ds.pixel_array
             if arr.dtype != np.uint8:
                 arr = ((arr - arr.min()) / max(arr.max() - arr.min(), 1) * 255).astype(np.uint8)

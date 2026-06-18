@@ -26,7 +26,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         await page.keyboard.type('show me lab results');
         await page.keyboard.press('Enter');
 
-        // The Zustand store has a 1.5s simulated network delay
+        // Give the UI time to render the response.
         await delay(2000);
         await page.screenshot({ path: '02_Clarification_Requested.png' });
         console.log("   📸 Saved 02_Clarification_Requested.png (Shows dynamic inline buttons)");

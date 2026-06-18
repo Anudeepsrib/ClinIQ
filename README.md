@@ -79,8 +79,8 @@ ClinIQ is built on the philosophy that healthcare AI should be auditable, role-s
       Gemini Embedding 2 natively embeds text, images, PDFs, audio, and video in a single 3072-dim vector space. X-rays, DICOM scans, and voice notes are searchable — no OCR middleman.
     </td>
     <td width="33%" valign="top">
-      <b>🩺 Copilot Health</b><br/>
-      Integrated Microsoft Copilot Health backend service gives doctors and nurses instant, evidence-based clinical intelligence without leaving the ClinIQ interface.
+      <b>🩺 Gemma 4 Clinical Intelligence</b><br/>
+      Hosted Google Gemma 4 gives doctors and nurses instant, evidence-based clinical intelligence without leaving the ClinIQ interface.
     </td>
   </tr>
   <tr>
@@ -119,7 +119,7 @@ ClinIQ is built on the philosophy that healthcare AI should be auditable, role-s
 
 ## 🚀 Quick Start
 
-ClinIQ can start locally without real API keys. Query synthesis and external vector search require provider credentials.
+ClinIQ can start locally without real API keys. Hosted Gemma 4 synthesis requires `GOOGLE_API_KEY`; external vector search requires provider credentials.
 
 ### 1. Clone
 ```bash
@@ -188,7 +188,7 @@ ClinIQ ships with a Helm chart for Azure Kubernetes Service or any generic K8s c
 kubectl create namespace cliniq
 kubectl -n cliniq create secret generic cliniq-runtime \
   --from-literal=JWT_SECRET_KEY='<strong-random-secret>' \
-  --from-literal=OPENAI_API_KEY='<optional-provider-key>'
+  --from-literal=GOOGLE_API_KEY='<google-ai-studio-key>'
 
 helm install cliniq ./aks/helm/cliniq \
   --namespace cliniq \
@@ -219,6 +219,7 @@ helm install cliniq ./aks/helm/cliniq \
       <ul>
         <li><b>API:</b> FastAPI (Python 3.10+)</li>
         <li><b>Orchestration:</b> LangChain ≥0.3 + LangGraph ≥0.2</li>
+        <li><b>LLM:</b> Google Gemma 4 via the Gemini API by default</li>
         <li><b>Embeddings:</b> Google Gemini 2 (3072-dim, multimodal)</li>
         <li><b>Vector Search:</b> Azure AI Search (hybrid: vector + BM25)</li>
         <li><b>PHI Detection:</b> Microsoft Presidio</li>
@@ -274,8 +275,8 @@ graph TD
         HalCheck -->|Grounded| Response["✅ Final Answer + Confidence"]
     end
 
-    subgraph CopilotHealth ["Microsoft Copilot Health"]
-        API -->|"Quick Help"| CopilotSvc["🩺 Copilot Health Service"]
+    subgraph ClinicalIntel ["Gemma 4 Clinical Intelligence"]
+        API -->|"Quick Help"| CopilotSvc["🩺 Clinical Intelligence Service"]
         CopilotSvc --> CopilotResp["Evidence-Based Answer + Sources"]
     end
 
@@ -291,11 +292,15 @@ Your instance can be customized entirely via the `.env` file:
 ```env
 # AI Provider
 OPENAI_API_KEY=
-LLM_MODEL=gpt-4o
+GOOGLE_API_KEY=
+LLM_PROVIDER=google_gemma
+LLM_MODEL=gemma-4-26b-a4b-it
+GOOGLE_GEMMA_MODEL=gemma-4-26b-a4b-it
+OPENAI_LLM_MODEL=gpt-4o
+GEMMA_THINKING_LEVEL=high
 EMBEDDING_MODEL=multimodal-embedding-002
 
 # Google Gemini (Multimodal Embeddings)
-GOOGLE_API_KEY=
 EMBEDDING_PROVIDER=gemini
 EMBEDDING_DIMENSIONS=3072
 
@@ -320,7 +325,7 @@ LANGCHAIN_PROJECT=ClinIQ-Hospital-Beta
 ```text
 ClinIQ/
 ├── app/
-│   ├── api/            # FastAPI routes & Copilot Health endpoints
+│   ├── api/            # FastAPI routes & clinical intelligence endpoints
 │   ├── chat/           # RAG pipeline & Copilot service wrapper
 │   ├── core/           # Configuration, settings, constants
 │   ├── ingestion/      # Multimodal document loaders & chunking

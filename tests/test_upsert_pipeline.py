@@ -1,8 +1,9 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from app.ingestion.upsert_pipeline import upsert_document, UpsertResult
-from app.ingestion.document_registry import DocumentRegistry
+
 from app.chat.chat_history_store import ChatHistoryStore
+from app.ingestion.upsert_pipeline import upsert_document
 
 
 @pytest.fixture

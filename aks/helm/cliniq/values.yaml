@@ -77,6 +77,11 @@ env:
   CORS_ALLOW_CREDENTIALS: "true"
   ENABLE_EXTERNAL_TRACING: "false"
   LANGCHAIN_TRACING_V2: "false"
+  LLM_PROVIDER: "google_gemma"
+  LLM_MODEL: "gemma-4-26b-a4b-it"
+  GOOGLE_GEMMA_MODEL: "gemma-4-26b-a4b-it"
+  OPENAI_LLM_MODEL: "gpt-4o"
+  GEMMA_THINKING_LEVEL: "high"
   AZURE_SEARCH_ENABLED: "false"
   CHAT_HISTORY_ENABLED: "false"
 

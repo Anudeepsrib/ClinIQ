@@ -2,16 +2,17 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Cloud, HardDrive, Cpu } from "lucide-react";
+import { Cloud, Cpu, HardDrive, Sparkles } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 
 export const ModelSwitcher: React.FC = () => {
   const { llmProvider, setLlmProvider } = useChatStore();
 
   const providers = [
-    { id: "azure_openai", label: "Cloud", icon: Cloud, desc: "GPT-4o (Azure)" },
+    { id: "google_gemma", label: "Gemma", icon: Sparkles, desc: "Gemma 4 26B A4B (Google)" },
+    { id: "azure_openai", label: "OpenAI", icon: Cloud, desc: "GPT-4o (Azure/OpenAI)" },
     { id: "ollama", label: "Local", icon: HardDrive, desc: "Gemma 4 (Ollama)" },
-    { id: "vllm", label: "PRO", icon: Cpu, desc: "Gemma 4 (vLLM)" },
+    { id: "vllm", label: "vLLM", icon: Cpu, desc: "Gemma 4 (vLLM)" },
   ] as const;
 
   return (

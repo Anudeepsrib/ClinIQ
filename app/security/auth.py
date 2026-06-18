@@ -7,13 +7,13 @@ Provides:
 - Optional demo admin seeding for local development only
 """
 
-import sqlite3
-import os
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+import os
+import sqlite3
 from contextlib import contextmanager
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta, timezone
+from typing import Dict, List, Optional
 
 import jwt
 from passlib.context import CryptContext
@@ -182,8 +182,8 @@ class UserDB:
                     "INSERT INTO users (username, full_name, hashed_pw, role, departments) VALUES (?, ?, ?, ?, ?)",
                     (username, full_name, hash_password(password), role, json.dumps(dept_list)),
                 )
-            except sqlite3.IntegrityError:
-                raise ValueError(f"Username '{username}' already exists")
+            except sqlite3.IntegrityError as exc:
+                raise ValueError(f"Username '{username}' already exists") from exc
         return self.get_user(username)
 
     def get_user(self, username: str) -> Optional[dict]:

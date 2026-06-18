@@ -1,9 +1,9 @@
-from app.ingestion.parsers import DocumentParser
-from app.ingestion.image_parser import parse_image, parse_dicom
 from typing import List
+
+from app.ingestion.image_parser import parse_dicom, parse_image
+from app.ingestion.parsers import DocumentParser
 from app.schemas.models import ProcessedChunk
 from app.security.pii import pii_manager
-
 
 # Audio/video MIME type mappings
 AUDIO_MIME_TYPES = {

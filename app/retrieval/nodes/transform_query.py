@@ -11,9 +11,12 @@ from typing import Any, Dict
 
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 
-from app.core.config import settings
+from app.chat.llm_provider import (
+    get_chat_model,
+    is_llm_configured,
+    missing_llm_configuration_message,
+)
 from app.retrieval.state import GraphState
 
 logger = logging.getLogger(__name__)
@@ -63,20 +66,23 @@ def transform_query(state: GraphState) -> Dict[str, Any]:
     original_question = state["question"]
     retry_count = state.get("retry_count", 0)
     transformations = list(state.get("query_transformations", []))
+    llm_provider = state.get("llm_provider")
 
-    if not settings.OPENAI_API_KEY:
+    if not is_llm_configured(llm_provider):
         retry_count += 1
-        logger.warning("OPENAI_API_KEY missing — skipping query rewrite")
+        logger.warning(
+            "%s — skipping query rewrite",
+            missing_llm_configuration_message(llm_provider),
+        )
         return {
             "question": original_question,
             "retry_count": retry_count,
             "query_transformations": transformations,
         }
 
-    llm = ChatOpenAI(
-        model=settings.LLM_MODEL,
+    llm = get_chat_model(
+        provider=llm_provider,
         temperature=0.4,  # slight creativity for synonyms
-        api_key=settings.OPENAI_API_KEY,
     )
 
     prompt = ChatPromptTemplate.from_messages(

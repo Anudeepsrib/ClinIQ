@@ -1,8 +1,8 @@
 import os
+
 import pandas as pd
-from reportlab.pdfgen import canvas
 from docx import Document
-from openpyxl import Workbook
+from reportlab.pdfgen import canvas
 
 DATA_DIR = "./data/docs"
 os.makedirs(DATA_DIR, exist_ok=True)

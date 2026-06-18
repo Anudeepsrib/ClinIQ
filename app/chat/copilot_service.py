@@ -1,34 +1,18 @@
-"""
-Copilot Health Service — Async wrapper for Microsoft Copilot Health API.
-
-This service acts as an intermediary between ClinIQ's FastAPI backend and
-the Microsoft Copilot Health REST API, providing quick medical intelligence
-to doctors and nurses without leaving the ClinIQ interface.
-
-NOTE: Microsoft Copilot Health's consumer API is not yet publicly available
-for direct programmatic integration (as of March 2026). This service is
-architected with a clean interface so that when the official API becomes
-available, only the internal `_call_copilot_api` method needs to change.
-
-In the interim, it uses Azure OpenAI with a medical-intelligence system
-prompt to provide equivalent quick-help functionality, leveraging the same
-credible health sources that power Copilot Health.
-"""
+"""Clinical intelligence service for quick medical reference lookups."""
 
 import logging
 from typing import Optional
 
 import httpx
 
-from app.core.config import settings
 from app.core.logging import redact_text
-from app.security.pii import pii_manager
 from app.schemas.copilot_models import CopilotHelpRequest, CopilotHelpResponse, CopilotSource
+from app.security.pii import pii_manager
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# System prompt engineered to mirror Copilot Health's medical intelligence
+# System prompt for concise, source-aware clinical reference answers.
 # ---------------------------------------------------------------------------
 COPILOT_HEALTH_SYSTEM_PROMPT = (
     "You are a clinical quick-help assistant integrated into the ClinIQ hospital system. "
@@ -44,7 +28,7 @@ COPILOT_HEALTH_SYSTEM_PROMPT = (
 
 
 class CopilotHealthService:
-    """Async service wrapping the Microsoft Copilot Health API."""
+    """Async service wrapping the configured clinical intelligence provider."""
 
     def __init__(self):
         self._http_client: Optional[httpx.AsyncClient] = None
@@ -61,8 +45,8 @@ class CopilotHealthService:
         user_id: str,
     ) -> CopilotHelpResponse:
         """
-        Query Copilot Health for quick medical intelligence.
-        Routes between Cloud (Azure) and Local (Gemma 4) providers.
+        Query the configured provider for quick medical intelligence.
+        Routes between hosted Gemma 4, Azure/OpenAI, and local Gemma 4 providers.
         """
         try:
             answer, sources = await self._call_copilot_api(
@@ -83,7 +67,7 @@ class CopilotHealthService:
             )
 
         except Exception as e:
-            logger.error("Copilot Health service error: %s", redact_text(e))
+            logger.error("Clinical intelligence service error: %s", redact_text(e))
             return CopilotHelpResponse(
                 answer=(
                     "I'm currently unable to reach the medical intelligence service. "
@@ -104,10 +88,17 @@ class CopilotHealthService:
     ) -> tuple[str, list[CopilotSource]]:
         """
         Call the underlying AI service for medical intelligence.
-        Supports both Azure OpenAI and local Gemma 4 (natively multimodal).
+        Supports hosted Google Gemma 4, Azure/OpenAI, and local Gemma 4.
         """
+        from app.chat.llm_provider import (
+            generate_chat_response,
+            is_local_llm_provider,
+            provider_display_name,
+            resolve_llm_provider,
+        )
+
         # Prioritize request-level provider override, fallback to global settings
-        active_provider = provider or settings.LLM_PROVIDER
+        active_provider = resolve_llm_provider(provider)
 
         safe_question = pii_manager.anonymize(question)
         safe_context = pii_manager.anonymize(context) if context else None
@@ -118,42 +109,40 @@ class CopilotHealthService:
         if department:
             user_prompt += f"\n\n(Department: {department}, Role: {user_role})"
 
-        if active_provider in ("ollama", "vllm"):
+        if is_local_llm_provider(active_provider):
             from app.chat.local_llm_adapter import local_llm_adapter
             
             answer = await local_llm_adapter.generate_response(
                 prompt=user_prompt,
                 system_prompt=COPILOT_HEALTH_SYSTEM_PROMPT,
-                images=images
+                images=images,
+                provider=active_provider,
             )
             
             sources = [
                 CopilotSource(
-                    title=f"Gemma 4 ({settings.LLM_PROVIDER.upper()}) — Local Clinical Intel",
+                    title=f"Gemma 4 ({active_provider.upper()}) — Local Clinical Intel",
                     url="http://localhost",
-                    provider=f"Google Gemma 4 via {settings.LLM_PROVIDER.title()}",
+                    provider=provider_display_name(active_provider),
                 )
             ]
         else:
-            from openai import AsyncOpenAI
-            client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
-            response = await client.chat.completions.create(
-                model=settings.LLM_MODEL,
-                messages=[
-                    {"role": "system", "content": COPILOT_HEALTH_SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt},
-                ],
+            answer = await generate_chat_response(
+                prompt=user_prompt,
+                system_prompt=COPILOT_HEALTH_SYSTEM_PROMPT,
+                provider=active_provider,
+                images=images,
                 temperature=0.2,
                 max_tokens=1024,
             )
-            answer = response.choices[0].message.content or "No response generated."
             
             sources = [
                 CopilotSource(
-                    title="Microsoft Copilot Health — Medical Intelligence",
-                    url="https://copilot.microsoft.com/health",
-                    provider="Microsoft Copilot Health",
+                    title=f"{provider_display_name(active_provider)} — Medical Intelligence",
+                    url="https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api"
+                    if active_provider == "google_gemma"
+                    else "https://platform.openai.com/docs/models",
+                    provider=provider_display_name(active_provider),
                 )
             ]
 

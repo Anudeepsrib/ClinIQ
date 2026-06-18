@@ -3,37 +3,55 @@ API routes — Auth, ingestion, and query endpoints with RBAC enforcement.
 """
 
 import logging
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends, Request, Form
-from typing import List, Optional
-from app.schemas.models import (
-    IngestResponse, UpsertResponse, DocumentInfo, DocumentHistory,
-    QueryRequest, QueryResponse,
-    LoginRequest, TokenResponse, UserCreate, UserOut,
-    FeedbackRequest, FeedbackResponse,
-)
-from app.schemas.chat_models import (
-    ChatMessageOut, SessionSummaryOut, CreateSessionRequest,
-    CreateSessionResponse, ChatSearchRequest
-)
-from app.ingestion.upsert_pipeline import upsert_document, delete_document as upsert_delete_document
-from app.ingestion.document_registry import document_registry
-from app.retrieval.azure_search_store import azure_search_store
+from typing import Annotated, List
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+
+from app.api.copilot import router as copilot_router
 from app.chat.chat_history_store import chat_history_store
-from app.retrieval.graph import app_graph
-from app.core.limiter import limiter
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import redact_text
-from app.security.auth import user_db, create_access_token
+from app.ingestion.document_registry import document_registry
+from app.ingestion.upsert_pipeline import delete_document as upsert_delete_document
+from app.ingestion.upsert_pipeline import upsert_document
+from app.observability.tracing import build_langsmith_config
+from app.observability.tracing import create_feedback as ls_create_feedback
+from app.retrieval.azure_search_store import azure_search_store
+from app.retrieval.graph import app_graph
+from app.schemas.chat_models import (
+    ChatMessageOut,
+    ChatSearchRequest,
+    CreateSessionRequest,
+    CreateSessionResponse,
+    SessionSummaryOut,
+)
+from app.schemas.models import (
+    DocumentHistory,
+    DocumentInfo,
+    FeedbackRequest,
+    FeedbackResponse,
+    LoginRequest,
+    QueryRequest,
+    QueryResponse,
+    TokenResponse,
+    UpsertResponse,
+    UserCreate,
+    UserOut,
+)
+from app.security.auth import create_access_token, user_db
 from app.security.pii import pii_manager
-from app.security.rbac import get_current_user, require_role, get_user_departments
+from app.security.rbac import get_current_user, get_user_departments, require_role
 from app.security.uploads import read_limited_upload, sanitize_filename, validate_upload_metadata
-from app.observability.tracing import build_langsmith_config, create_feedback as ls_create_feedback
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# --- Include sub-routers ---
-from app.api.copilot import router as copilot_router
+CurrentUser = Annotated[dict, Depends(get_current_user)]
+AdminUser = Annotated[dict, Depends(require_role("admin"))]
+UploadedDocument = Annotated[UploadFile, File()]
+DepartmentForm = Annotated[str, Form()]
+
 router.include_router(copilot_router)
 
 
@@ -66,7 +84,7 @@ async def login(request: Request, body: LoginRequest):
 async def register_user(
     request: Request,
     body: UserCreate,
-    admin: dict = Depends(require_role("admin")),
+    admin: AdminUser,
 ):
     """Admin-only: create a new user."""
     try:
@@ -79,17 +97,17 @@ async def register_user(
         )
         return UserOut(**{k: v for k, v in user.items() if k != "hashed_pw"})
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.get("/auth/me", response_model=UserOut)
-async def get_me(user: dict = Depends(get_current_user)):
+async def get_me(user: CurrentUser):
     """Return the current authenticated user's profile."""
     return UserOut(**{k: v for k, v in user.items() if k != "hashed_pw"})
 
 
 @router.get("/admin/users", response_model=List[UserOut])
-async def list_users(admin: dict = Depends(require_role("admin"))):
+async def list_users(admin: AdminUser):
     """Admin-only: list all users."""
     return [
         UserOut(**{k: v for k, v in u.items() if k != "hashed_pw"})
@@ -98,7 +116,7 @@ async def list_users(admin: dict = Depends(require_role("admin"))):
 
 
 @router.delete("/admin/users/{username}")
-async def delete_user(username: str, admin: dict = Depends(require_role("admin"))):
+async def delete_user(username: str, admin: AdminUser):
     """Admin-only: delete a user (cannot delete admins)."""
     if user_db.delete_user(username):
         return {"status": "deleted", "username": username}
@@ -110,7 +128,7 @@ async def delete_user(username: str, admin: dict = Depends(require_role("admin")
 # =========================================================================
 
 @router.get("/departments")
-async def get_departments(user: dict = Depends(get_current_user)):
+async def get_departments(user: CurrentUser):
     """Return departments the current user can access."""
     depts = get_user_departments(user)
     return {
@@ -121,7 +139,7 @@ async def get_departments(user: dict = Depends(get_current_user)):
 
 
 @router.get("/departments/stats")
-async def get_department_stats(admin: dict = Depends(require_role("admin"))):
+async def get_department_stats(admin: AdminUser):
     """Admin-only: document counts per department."""
     return azure_search_store.get_collection_stats()
 
@@ -134,9 +152,9 @@ async def get_department_stats(admin: dict = Depends(require_role("admin"))):
 @limiter.limit("10/minute")
 async def ingest_document(
     request: Request,
-    file: UploadFile = File(...),
-    department: str = Form("general"),
-    user: dict = Depends(get_current_user),
+    file: UploadedDocument,
+    user: CurrentUser,
+    department: DepartmentForm = "general",
 ):
     """
     Upload a document to a specific department's knowledge base.
@@ -173,16 +191,16 @@ async def ingest_document(
         )
         return result
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except HTTPException:
         raise
     except Exception as e:
         logger.exception("Error ingesting file %s: %s", safe_filename, redact_text(e))
-        raise HTTPException(status_code=500, detail="Failed to ingest document")
+        raise HTTPException(status_code=500, detail="Failed to ingest document") from e
 
 
 @router.get("/documents/{department}", response_model=List[DocumentInfo])
-async def list_documents(department: str, user: dict = Depends(get_current_user)):
+async def list_documents(department: str, user: CurrentUser):
     """List active documents in a department (RBAC enforced)."""
     department = department.lower()
     allowed = get_user_departments(user)
@@ -192,7 +210,7 @@ async def list_documents(department: str, user: dict = Depends(get_current_user)
 
 
 @router.delete("/documents/{department}/{filename}")
-async def delete_document_ep(department: str, filename: str, admin: dict = Depends(require_role("admin"))):
+async def delete_document_ep(department: str, filename: str, admin: AdminUser):
     """Admin-only: soft-delete a document and purge vectors."""
     filename = sanitize_filename(filename)
     success = await upsert_delete_document(filename, department)
@@ -202,7 +220,7 @@ async def delete_document_ep(department: str, filename: str, admin: dict = Depen
 
 
 @router.get("/documents/{department}/{filename}/history", response_model=DocumentHistory)
-async def get_document_history(department: str, filename: str, user: dict = Depends(get_current_user)):
+async def get_document_history(department: str, filename: str, user: CurrentUser):
     """Get full version history (RBAC enforced)."""
     department = department.lower()
     filename = sanitize_filename(filename)
@@ -223,7 +241,7 @@ async def get_document_history(department: str, filename: str, user: dict = Depe
 async def query_documents(
     request: Request,
     request_body: QueryRequest,
-    user: dict = Depends(get_current_user),
+    user: CurrentUser,
 ):
     """
     Query the knowledge base. Searches only departments the user has access to.
@@ -263,6 +281,7 @@ async def query_documents(
             "role": user["role"],
             "departments": search_depts,
             "user_id": user["username"],
+            "llm_provider": request_body.provider or settings.LLM_PROVIDER,
             "retry_count": 0,
             "hallucination_score": "",
             "query_transformations": [],
@@ -335,7 +354,7 @@ async def query_documents(
         raise
     except Exception as e:
         logger.exception("Error processing query: %s", redact_text(e))
-        raise HTTPException(status_code=500, detail="Failed to process query")
+        raise HTTPException(status_code=500, detail="Failed to process query") from e
 
 
 # =========================================================================
@@ -347,7 +366,7 @@ async def query_documents(
 async def submit_feedback(
     request: Request,
     body: FeedbackRequest,
-    user: dict = Depends(get_current_user),
+    user: CurrentUser,
 ):
     """
     Submit clinician feedback for a previous query.
@@ -378,7 +397,7 @@ async def submit_feedback(
 # =========================================================================
 
 @router.post("/chat/sessions", response_model=CreateSessionResponse)
-async def create_chat_session(req: CreateSessionRequest, user: dict = Depends(get_current_user)):
+async def create_chat_session(req: CreateSessionRequest, user: CurrentUser):
     """Create a new chat session."""
     department = (req.department or "general").lower()
     allowed = get_user_departments(user)
@@ -389,13 +408,13 @@ async def create_chat_session(req: CreateSessionRequest, user: dict = Depends(ge
 
 
 @router.get("/chat/sessions", response_model=List[SessionSummaryOut])
-async def list_chat_sessions(user: dict = Depends(get_current_user)):
+async def list_chat_sessions(user: CurrentUser):
     """List only the current user's sessions."""
     return [s.to_dict() for s in chat_history_store.list_sessions(user["username"])]
 
 
 @router.get("/chat/sessions/{session_id}", response_model=List[ChatMessageOut])
-async def get_chat_session(session_id: str, user: dict = Depends(get_current_user)):
+async def get_chat_session(session_id: str, user: CurrentUser):
     """Get conversation only if owned by current user."""
     if user["role"] == "admin":
         messages = chat_history_store.admin_get_session(session_id)
@@ -405,7 +424,7 @@ async def get_chat_session(session_id: str, user: dict = Depends(get_current_use
 
 
 @router.delete("/chat/sessions/{session_id}")
-async def delete_chat_session(session_id: str, user: dict = Depends(get_current_user)):
+async def delete_chat_session(session_id: str, user: CurrentUser):
     """Delete session if owned by user or if admin (RBAC)."""
     if user["role"] == "admin":
         success = chat_history_store.admin_delete_session(session_id)
@@ -417,7 +436,7 @@ async def delete_chat_session(session_id: str, user: dict = Depends(get_current_
 
 
 @router.post("/chat/search", response_model=List[ChatMessageOut])
-async def search_chat_history(req: ChatSearchRequest, user: dict = Depends(get_current_user)):
+async def search_chat_history(req: ChatSearchRequest, user: CurrentUser):
     """Semantic search scoped to current user's history only."""
     results = chat_history_store.search_history(user["username"], req.query, req.k)
     return [r.to_dict() for r in results]

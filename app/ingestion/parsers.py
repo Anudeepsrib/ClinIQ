@@ -1,9 +1,12 @@
 import io
+from typing import List
+
 import pandas as pd
-from typing import List, Dict, Any, Tuple
 from pypdf import PdfReader
-from app.schemas.models import ProcessedChunk
+
 from app.ingestion.chunker import ContentChunker
+from app.schemas.models import ProcessedChunk
+
 
 class DocumentParser:
     def __init__(self):
@@ -21,7 +24,7 @@ class DocumentParser:
             
             # Chunk the page content
             text_chunks = self.chunker.chunk_text(text)
-            for idx, content in enumerate(text_chunks):
+            for content in text_chunks:
                 chunks.append(ProcessedChunk(
                     chunk_index=len(chunks),
                     content=content,
@@ -47,7 +50,7 @@ class DocumentParser:
             # Generate string chunks
             str_chunks = self.chunker.chunk_excel(rows)
             
-            for idx, content in enumerate(str_chunks):
+            for content in str_chunks:
                 chunks.append(ProcessedChunk(
                     chunk_index=len(chunks),
                     content=content,
@@ -58,23 +61,15 @@ class DocumentParser:
         return chunks
 
     async def parse_docx(self, file_content: bytes, filename: str) -> List[ProcessedChunk]:
-        """
-        Parses DOCX using python-docx (lightweight) or unstructured.
-        For MVP, we can simulate or use a simple xml parser if unstructured is strict dep.
-        Let's use a simple approach for now or assume unstructured is installed.
-        For now, I will use a placeholder or basic text extraction if unstructured is heavy.
-        Actually, let's use unstructured since it was in requirements.
-        """
+        """Extract DOCX text with unstructured and chunk it."""
         from unstructured.partition.docx import partition_docx
-        
-        # Save to temp file because unstructured likes paths or file-like objects
-        # efficient file-like object handling
+
         elements = partition_docx(file=io.BytesIO(file_content))
         text = "\n\n".join([str(el) for el in elements])
         
         text_chunks = self.chunker.chunk_text(text)
         chunks = []
-        for idx, content in enumerate(text_chunks):
+        for content in text_chunks:
             chunks.append(ProcessedChunk(
                 chunk_index=len(chunks),
                 content=content,

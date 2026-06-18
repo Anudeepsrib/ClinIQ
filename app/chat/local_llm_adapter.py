@@ -1,7 +1,7 @@
 import base64
 import io
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from urllib.parse import urlparse
 
 import httpx
@@ -53,21 +53,23 @@ class LocalLLMAdapter:
         self, 
         prompt: str, 
         system_prompt: str, 
-        images: Optional[List[str]] = None
+        images: Optional[List[str]] = None,
+        provider: Optional[str] = None,
     ) -> str:
         """Calls the configured local provider (Ollama or vLLM)."""
+        active_provider = provider or settings.LLM_PROVIDER
         
         # Prepare multimodal data if present
         optimized_images = []
         if images:
             optimized_images = [self._resize_image(img) for img in images]
 
-        if settings.LLM_PROVIDER == "ollama":
+        if active_provider == "ollama":
             return await self._call_ollama(prompt, system_prompt, optimized_images)
-        elif settings.LLM_PROVIDER == "vllm":
+        elif active_provider == "vllm":
             return await self._call_vllm(prompt, system_prompt, optimized_images)
         else:
-            raise ValueError(f"Unsupported local provider: {settings.LLM_PROVIDER}")
+            raise ValueError(f"Unsupported local provider: {active_provider}")
 
     async def _call_ollama(self, prompt: str, system_prompt: str, images: List[str]) -> str:
         url = f"{settings.OLLAMA_BASE_URL}/api/chat"

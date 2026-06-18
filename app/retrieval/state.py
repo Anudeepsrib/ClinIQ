@@ -25,6 +25,7 @@ class GraphState(TypedDict):
         hallucination_score:   'yes' (grounded) or 'no' (hallucinated)
         query_transformations: Audit trail of all query rewrites
         metadata:              LangSmith tags (department, user_role, etc.)
+        llm_provider:          Model provider selected for this query
     """
 
     question: str
@@ -37,6 +38,7 @@ class GraphState(TypedDict):
     hallucination_score: str
     query_transformations: List[str]
     metadata: Dict[str, Any]
+    llm_provider: str
     clarification_needed: bool
     clarification_options: List[str]
     query_modality: str  # "text" | "image" | "audio" | "video"

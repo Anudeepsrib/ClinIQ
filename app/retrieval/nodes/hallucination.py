@@ -10,9 +10,13 @@ import logging
 from typing import Any, Dict
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
+from app.chat.llm_provider import (
+    get_chat_model,
+    is_llm_configured,
+    missing_llm_configuration_message,
+)
 from app.core.config import settings
 from app.retrieval.state import GraphState
 
@@ -90,6 +94,7 @@ def hallucination_check(state: GraphState) -> Dict[str, Any]:
     documents = state["documents"]
     generation = state.get("generation", "")
     max_retries = getattr(settings, "MAX_QUERY_RETRIES", 3)
+    llm_provider = state.get("llm_provider")
 
     if not generation:
         logger.warning("  No generation to check — failing closed")
@@ -107,8 +112,11 @@ def hallucination_check(state: GraphState) -> Dict[str, Any]:
             "retry_count": max_retries,
         }
 
-    if not settings.OPENAI_API_KEY:
-        logger.warning("OPENAI_API_KEY missing — accepting extractive fallback as grounded")
+    if not is_llm_configured(llm_provider):
+        logger.warning(
+            "%s — accepting extractive fallback as grounded",
+            missing_llm_configuration_message(llm_provider),
+        )
         return {"hallucination_score": "yes"}
 
     # Format documents into a single text block
@@ -117,11 +125,7 @@ def hallucination_check(state: GraphState) -> Dict[str, Any]:
         for i, doc in enumerate(documents)
     )
 
-    llm = ChatOpenAI(
-        model=settings.LLM_MODEL,
-        temperature=0,
-        api_key=settings.OPENAI_API_KEY,
-    )
+    llm = get_chat_model(provider=llm_provider, temperature=0)
     structured_llm = llm.with_structured_output(GradeHallucination)
 
     prompt = ChatPromptTemplate.from_messages(

@@ -11,15 +11,15 @@ Orchestrates the full flow:
 Unchanged documents are skipped entirely — zero wasted compute.
 """
 
-import logging
 import inspect
+import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from app.ingestion.document_registry import document_registry, DocumentRegistry
+from app.core.config import settings
+from app.ingestion.document_registry import DocumentRegistry, document_registry
 from app.ingestion.loader_factory import LoaderFactory
 from app.retrieval.azure_search_store import azure_search_store
-from app.core.config import settings
 from app.security.uploads import sanitize_filename
 
 logger = logging.getLogger(__name__)

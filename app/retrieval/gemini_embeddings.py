@@ -8,9 +8,8 @@ Falls back to OpenAI text-embedding-3-small when EMBEDDING_PROVIDER=openai.
 API ref: https://ai.google.dev/gemini-api/docs/embeddings
 """
 
-import base64
 import logging
-from typing import List, Optional
+from typing import List
 
 from app.core.config import settings
 

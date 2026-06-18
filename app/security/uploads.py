@@ -9,7 +9,6 @@ from fastapi import HTTPException, UploadFile, status
 
 from app.core.config import settings
 
-
 ALLOWED_MIME_TYPES = {
     "pdf": {"application/pdf"},
     "docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},

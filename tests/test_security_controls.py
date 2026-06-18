@@ -7,7 +7,6 @@ from app.core.config import Settings
 from app.security.auth import create_access_token, user_db
 from main import app
 
-
 client = TestClient(app)
 
 

@@ -7,10 +7,10 @@ from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
+from app.api import routes
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging, redact_text
-from app.api import routes
 
 configure_logging()
 logger = logging.getLogger(__name__)

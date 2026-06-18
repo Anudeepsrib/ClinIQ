@@ -1,6 +1,8 @@
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import DirectoryLoader
+
+from app.chat.llm_provider import get_chat_model
 from app.core.config import settings
+from app.retrieval.gemini_embeddings import gemini_embeddings
 
 try:
     from ragas.testset.evolutions import multi_context, reasoning, simple
@@ -11,10 +13,10 @@ except ImportError as exc:
         "Install a patched RAGAS release before running this script."
     ) from exc
 
-# Initialize models
-generator_llm = ChatOpenAI(model="gpt-3.5-turbo-16k")
-critic_llm = ChatOpenAI(model="gpt-4")
-embeddings = OpenAIEmbeddings()
+# Use the same configured provider family as the app.
+generator_llm = get_chat_model(temperature=0.4)
+critic_llm = get_chat_model(temperature=0)
+embeddings = gemini_embeddings
 
 generator = TestsetGenerator.from_langchain(
     generator_llm,
