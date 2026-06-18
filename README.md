@@ -1,166 +1,189 @@
-<div align="center">
-  <img src="frontend/public/logo.png" alt="ClinIQ Logo" width="150" style="border-radius: 20%; margin-bottom: 20px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
-  
-  <h1 style="margin-top: 0;">ClinIQ 🏥</h1>
-  
-  <p><b>"When building for healthcare, 'good enough' AI is dangerous. You need absolute, verifiable control."</b></p>
-  
-  <p>A healthcare RAG demo and reference implementation with HIPAA-aware controls for safer local experimentation. Formal HIPAA compliance requires an organization-specific legal, security, and operational review.</p>
+# ClinIQ
 
-  <p>
-    <a href="https://github.com/Anudeepsrib/ClinIQ">
-      <img src="https://img.shields.io/github/stars/Anudeepsrib/ClinIQ?style=for-the-badge&logo=github" alt="GitHub stars" />
-    </a>
-    <a href="https://github.com/Anudeepsrib/ClinIQ">
-      <img src="https://img.shields.io/github/forks/Anudeepsrib/ClinIQ?style=for-the-badge&logo=github" alt="GitHub forks" />
-    </a>
-    <a href="https://github.com/Anudeepsrib/ClinIQ/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/Anudeepsrib/ClinIQ?style=for-the-badge" alt="License" />
-    </a>
-    <a href="#">
-      <img src="https://img.shields.io/badge/security-HIPAA--aware_controls-purple?style=for-the-badge" alt="HIPAA-aware controls" />
-    </a>
-  </p>
+ClinIQ is a healthcare RAG demo and reference implementation for hospital policy search, role-scoped retrieval, and clinical quick-help workflows. It is designed for local experimentation and architecture review with HIPAA-aware controls, not as certified clinical or compliance software.
 
-  <p>
-    <a href="#-security-posture">Security</a> •
-    <a href="#-core-features">Features</a> •
-    <a href="#-quick-start">Quick Start</a> •
-    <a href="#%EF%B8%8F-tech-stack">Tech Stack</a> •
-    <a href="#-deep-dive-architecture">Architecture</a>
-  </p>
-  
-  <a href="https://github.com/Anudeepsrib/ClinIQ">
-    <img src="https://github-readme-stats.vercel.app/api/pin/?username=Anudeepsrib&repo=ClinIQ&theme=radical&show_owner=true" alt="Readme Card" />
-  </a>
-</div>
+The app combines a FastAPI backend, a LangGraph RAG pipeline, a Next.js clinical interface, Google Gemma 4 model routing, Gemini multimodal embeddings, Azure AI Search-ready retrieval, JWT/RBAC enforcement, PHI masking, and optional LangSmith tracing.
 
----
+![ClinIQ interface](frontend/public/assets/01_Initial_Interface.png)
 
-## 🔒 Security Posture
+## Contents
 
-ClinIQ is built on the philosophy that healthcare AI should be auditable, role-scoped, and conservative when context is missing. This repository implements HIPAA-aware controls, but it is not certified HIPAA-compliant production software.
+- [What It Does](#what-it-does)
+- [Safety And Scope](#safety-and-scope)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Provider Modes](#provider-modes)
+- [Working With Data](#working-with-data)
+- [API Examples](#api-examples)
+- [Quality Checks](#quality-checks)
+- [Deployment](#deployment)
+- [Troubleshooting](#troubleshooting)
+- [Project Structure](#project-structure)
 
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>🛡️ Role-Based Access Control</h3>
-      <p>Strict JWT-based role hierarchies (<code>Admin → Doctor → Nurse → Technician</code>) enforce data boundaries at every layer. Every query is scoped to the user's department.</p>
-    </td>
-    <td width="50%" valign="top">
-      <h3>🚫 Grounding Checks</h3>
-      <p>Answers are checked against retrieved documents where an LLM verifier is configured. Verification failures return conservative responses.</p>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <h3>🔏 PHI Masking</h3>
-      <p>PHI-like values are anonymized before ingestion, logs, tracing metadata, and model calls where feasible. Powered by Microsoft Presidio with regex fallback.</p>
-    </td>
-    <td width="50%" valign="top">
-      <h3>🏢 Department-Scoped Data</h3>
-      <p>Department filters scope retrieval and document access. Production deployments should validate index-level isolation and operational controls.</p>
-    </td>
-  </tr>
-</table>
+## What It Does
 
----
+- Answers hospital policy questions through a stateful LangGraph RAG pipeline.
+- Applies JWT authentication, role hierarchy checks, and department-scoped access.
+- Anonymizes PHI-like values before graph/model calls, logging, tracing metadata, and chat-history storage where feasible.
+- Uses clarification, relevance grading, generation, hallucination checking, and retry nodes to keep answers conservative.
+- Supports hosted Google Gemma 4, Azure/OpenAI, local Ollama, and local vLLM provider modes.
+- Supports multimodal ingestion paths for PDF, DOCX, XLSX, images, DICOM, audio, and video metadata/chunks.
+- Includes a Next.js clinical interface plus a static fallback UI served by FastAPI.
+- Ships deployment-oriented Helm templates for Kubernetes/AKS-style environments.
 
-## ✨ Core Features
+## Safety And Scope
 
-<table>
-  <tr>
-    <td width="33%" valign="top">
-      <b>🧠 Stateful RAG Pipeline</b><br/>
-      Powered by LangGraph. Clarification nodes prevent bad answers. LLM-based document graders ensure relevance. Automatic abbreviation expansion for medical terms.
-    </td>
-    <td width="33%" valign="top">
-      <b>🌐 Multimodal RAG</b><br/>
-      Gemini Embedding 2 natively embeds text, images, PDFs, audio, and video in a single 3072-dim vector space. X-rays, DICOM scans, and voice notes are searchable — no OCR middleman.
-    </td>
-    <td width="33%" valign="top">
-      <b>🩺 Gemma 4 Clinical Intelligence</b><br/>
-      Hosted Google Gemma 4 gives doctors and nurses instant, evidence-based clinical intelligence without leaving the ClinIQ interface.
-    </td>
-  </tr>
-  <tr>
-    <td width="33%" valign="top">
-      <b>🎨 Clinical Precision UI</b><br/>
-      Asymmetric 80/20 Context Grid designed for noisy hospital wards. Maximum context retention. Dark-mode optimized for low-light environments.
-    </td>
-    <td width="33%" valign="top">
-      <b>📊 Full Observability</b><br/>
-      Optional LangSmith integration can trace graph nodes, LLM calls, and retriever invocations. External tracing is disabled by default to avoid PHI egress.
-    </td>
-    <td width="33%" valign="top">
-      <b>☸️ Enterprise Deployment</b><br/>
-      Deployment-oriented Helm charts for AKS/Kubernetes. HPA, resource quotas, non-root security contexts, and liveness/readiness probes included.
-    </td>
-  </tr>
-</table>
+ClinIQ is educational and experimental software. It does not provide medical advice, diagnosis, treatment protocols, or production HIPAA compliance by itself.
 
----
+Before using real PHI or clinical workflows, an organization must complete legal review, clinical safety review, threat modeling, identity-management integration, audit-retention planning, secrets/KMS design, storage encryption, backup/restore validation, monitoring, incident response, and deployment hardening.
 
-## 🖥️ Interface Overview
+Security defaults are conservative:
 
-<div align="center">
-  <img src="frontend/public/assets/01_Initial_Interface.png" alt="Clinical UI Interface" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
-  <p><em>The primary Asymmetric 80/20 Clinical Layout.</em></p>
-</div>
+- External tracing is disabled unless explicitly enabled.
+- Demo admin seeding is disabled unless explicitly enabled.
+- Runtime DBs, vector stores, temp files, API keys, and `.env` files are ignored.
+- Production startup rejects weak JWT secrets and wildcard CORS with credentials.
+- The generation prompt treats retrieved documents as untrusted content.
 
-<br/>
+See [docs/security-hardening.md](docs/security-hardening.md) for more detail.
 
-<div align="center">
-  <img src="frontend/public/assets/03_RBAC_Inline_Masking.png" alt="RBAC Inline Masking Feature" width="800" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
-  <p><em>Dynamic mid-sentence PHI Redaction for unauthorized medical staff.</em></p>
-</div>
+## Architecture
 
----
+```mermaid
+graph TD
+    User["Hospital staff"] --> Frontend["Next.js UI or static UI"]
+    Frontend --> API["FastAPI /api/v1"]
+    API --> Auth["JWT auth and RBAC"]
+    Auth --> Dept["Department scope"]
 
-## 🚀 Quick Start
+    API --> Graph["LangGraph RAG pipeline"]
+    Graph --> Clarify["Clarification check"]
+    Clarify --> Retrieve["Azure AI Search retrieval"]
+    Retrieve --> Grade["Document relevance grading"]
+    Grade --> Generate["Answer generation"]
+    Generate --> Verify["Hallucination check"]
+    Verify --> Response["Answer, sources, confidence"]
 
-ClinIQ can start locally without real API keys. Hosted Gemma 4 synthesis requires `GOOGLE_API_KEY`; external vector search requires provider credentials.
+    API --> Intel["Clinical quick-help endpoint"]
+    Intel --> Provider["Gemma 4 / Azure OpenAI / Ollama / vLLM"]
 
-### 1. Clone
+    API --> Ingest["Upload and ingestion"]
+    Ingest --> Parse["PDF, DOCX, XLSX, image, DICOM, audio, video"]
+    Parse --> Embed["Gemini multimodal embeddings"]
+    Embed --> SearchIndex["Department-scoped search indexes"]
+
+    API --> History["Optional Chroma chat history"]
+    API --> Trace["Optional LangSmith tracing"]
+```
+
+The backend can start without external credentials. Real synthesis requires the selected LLM provider credentials, and real retrieval requires Azure AI Search to be enabled and configured.
+
+## Prerequisites
+
+- Python 3.11 recommended.
+- Node.js 22 recommended for the frontend.
+- `npm` for frontend dependency installation.
+- Optional: Google AI Studio API key for hosted Gemma 4 and Gemini embeddings.
+- Optional: Azure AI Search service and key for production retrieval.
+- Optional: Ollama or vLLM running locally for local model modes.
+
+## Quick Start
+
+### 1. Clone And Install Backend
+
 ```bash
 git clone https://github.com/Anudeepsrib/ClinIQ.git
 cd ClinIQ
+
+python -m venv .venv
 ```
 
-### 2. Create a Python environment
-```bash
-python -m venv .venv
-# Windows PowerShell
-.\.venv\Scripts\Activate.ps1
-# macOS/Linux
-source .venv/bin/activate
+Windows PowerShell:
 
+```powershell
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-### 3. Configure local environment
+macOS/Linux:
+
+```bash
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 2. Configure Backend
+
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+macOS/Linux:
+
 ```bash
 cp .env.example .env
 python -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Paste the generated value into `JWT_SECRET_KEY` in `.env`. Leave external API keys and `ENABLE_EXTERNAL_TRACING=false` blank/off unless you intentionally want to call those services.
+Paste the generated value into `JWT_SECRET_KEY` in `.env`.
 
-To create a local demo admin, set `ALLOW_DEMO_ADMIN=true` and choose a unique `DEMO_ADMIN_PASSWORD` of at least 12 characters. Do not use the demo admin option in production.
+For a local login account, enable the demo admin only in development:
 
-### 4. Backend server
+```env
+ALLOW_DEMO_ADMIN=true
+DEMO_ADMIN_USERNAME=admin
+DEMO_ADMIN_PASSWORD=replace-with-a-local-password-at-least-12-chars
+```
+
+For hosted Gemma 4:
+
+```env
+GOOGLE_API_KEY=your-google-api-key
+LLM_PROVIDER=google_gemma
+LLM_MODEL=gemma-4-26b-a4b-it
+```
+
+You can still run startup/build/test checks with API keys blank. Queries that require an unconfigured model provider will fall back conservatively instead of silently inventing answers.
+
+### 3. Start Backend
+
 ```bash
 uvicorn main:app --host 127.0.0.1 --port 8000
 ```
 
 Health checks:
+
 ```bash
 curl http://127.0.0.1:8000/health
 curl http://127.0.0.1:8000/ready
 ```
 
-### 5. Frontend interface
+Open API docs in development:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 4. Start Frontend
+
+Windows PowerShell:
+
+```powershell
+cd frontend
+npm install
+Copy-Item .env.example .env.local
+npm run dev
+```
+
+macOS/Linux:
+
 ```bash
 cd frontend
 npm install
@@ -168,189 +191,215 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) to access the clinical interface.
+Open:
 
-### 6. Tests and checks
+```text
+http://localhost:3000
+```
+
+The frontend defaults to `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+
+## Configuration
+
+The backend uses `.env` through Pydantic settings. The most important values are:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `ENVIRONMENT` | `development` | Enables dev docs and production validations. |
+| `JWT_SECRET_KEY` | placeholder | Must be replaced. Production rejects weak values. |
+| `ALLOW_DEMO_ADMIN` | `false` | Enables one local admin seed account when no users exist. |
+| `GOOGLE_API_KEY` | blank | Required for hosted Gemma 4 and Gemini embeddings. |
+| `OPENAI_API_KEY` | blank | Required only for `azure_openai` provider or OpenAI embeddings/chat history. |
+| `LLM_PROVIDER` | `google_gemma` | One of `google_gemma`, `azure_openai`, `ollama`, `vllm`. |
+| `LLM_MODEL` | `gemma-4-26b-a4b-it` | Backward-compatible model override for the configured provider. |
+| `GOOGLE_GEMMA_MODEL` | `gemma-4-26b-a4b-it` | Hosted Gemma fallback when switching providers at request time. |
+| `OPENAI_LLM_MODEL` | `gpt-4o` | OpenAI/Azure fallback when switching providers at request time. |
+| `LOCAL_LLM_MODEL` | `gemma4:e4b` | Ollama/vLLM local model name. |
+| `EMBEDDING_PROVIDER` | `gemini` | `gemini` or `openai`. |
+| `EMBEDDING_MODEL` | `multimodal-embedding-002` | Embedding model name. |
+| `AZURE_SEARCH_ENABLED` | `false` | Enables real Azure AI Search retrieval. |
+| `CHAT_HISTORY_ENABLED` | `false` | Enables Chroma-backed chat history. |
+| `ENABLE_EXTERNAL_TRACING` | `false` | Enables LangSmith export. Keep off for PHI-sensitive local work. |
+
+Full local defaults live in [.env.example](.env.example).
+
+## Provider Modes
+
+| Provider | `LLM_PROVIDER` | Required setup | Notes |
+| --- | --- | --- | --- |
+| Hosted Gemma 4 | `google_gemma` | `GOOGLE_API_KEY` | Default hosted model path. Supports text and image inputs through Google GenAI/LangChain. |
+| Azure/OpenAI | `azure_openai` | `OPENAI_API_KEY` | Uses OpenAI-compatible chat calls with `OPENAI_LLM_MODEL`. |
+| Ollama | `ollama` | Local Ollama on `OLLAMA_BASE_URL` | Traffic is restricted to localhost by default. |
+| vLLM | `vllm` | Local vLLM OpenAI-compatible server on `VLLM_BASE_URL` | Traffic is restricted to localhost by default. |
+
+The UI model switcher sends the selected provider with both standard RAG queries and clinical quick-help requests.
+
+## Working With Data
+
+Sample documents are expected under `data/docs`, but runtime data is ignored by Git. The ingestion endpoint accepts supported document uploads and registers versions through the document registry.
+
+For real retrieval:
+
+1. Set `AZURE_SEARCH_ENABLED=true`.
+2. Set `AZURE_SEARCH_ENDPOINT`.
+3. Set `AZURE_SEARCH_API_KEY`.
+4. Confirm `AZURE_SEARCH_INDEX_PREFIX`.
+5. Ingest documents through `/api/v1/ingest`.
+
+When Azure Search is disabled, ingestion and app startup still work, but retrieval returns no indexed search results.
+
+## API Examples
+
+### Login
+
 ```bash
-python -m compileall .
-pip check
-pytest
+curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"replace-with-a-local-password-at-least-12-chars"}'
+```
 
+Save the returned token:
+
+```bash
+TOKEN="paste-access-token-here"
+```
+
+### Query Documents
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/query \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is the MRI authorization policy?",
+    "departments": ["radiology"],
+    "provider": "google_gemma"
+  }'
+```
+
+### Clinical Quick Help
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/copilot/quick-help \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Summarize key safety checks before heparin administration.",
+    "department": "nursing",
+    "provider": "google_gemma"
+  }'
+```
+
+The route keeps the `/copilot/quick-help` path for compatibility, but the implementation is now a configurable clinical intelligence provider.
+
+### Upload A Document
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/ingest \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "department=radiology" \
+  -F "file=@data/docs/policy_mri_authorization.pdf"
+```
+
+## Quality Checks
+
+Backend:
+
+```bash
+python -m ruff check app tests main.py scripts
+python -m compileall app main.py tests scripts
+python -m pytest
+pip check
+```
+
+Frontend:
+
+```bash
 cd frontend
 npm run lint
 npm run build
-npm audit
+npm audit --audit-level=high
 ```
 
-### 7. Kubernetes deployment
-ClinIQ ships with a Helm chart for Azure Kubernetes Service or any generic K8s cluster. Create runtime secrets outside the chart, for example with Azure Key Vault CSI Driver, External Secrets Operator, or a manually managed Kubernetes Secret.
+Security/dependency audit:
+
+```bash
+pip-audit -r requirements.txt
+```
+
+Optional evaluation scripts live under `tests/evaluation`. They require optional RAGAS dependencies that are intentionally not part of the default runtime install.
+
+## Deployment
+
+### Render
+
+`render.yaml` includes a Python web service definition. Configure runtime secrets in Render, especially:
+
+- `JWT_SECRET_KEY`
+- `GOOGLE_API_KEY` or the provider key you choose
+- `ENVIRONMENT=production`
+- `CORS_ALLOWED_ORIGINS`
+
+### Kubernetes / Helm
+
+Create secrets outside the chart:
+
 ```bash
 kubectl create namespace cliniq
 kubectl -n cliniq create secret generic cliniq-runtime \
   --from-literal=JWT_SECRET_KEY='<strong-random-secret>' \
   --from-literal=GOOGLE_API_KEY='<google-ai-studio-key>'
+```
 
+Install:
+
+```bash
 helm install cliniq ./aks/helm/cliniq \
   --namespace cliniq \
   --set secrets.existingSecret=cliniq-runtime \
   -f ./aks/helm/cliniq/values.yaml
 ```
 
----
+Production deployments should replace `emptyDir` data volumes with durable storage where needed and provide secrets through a managed secret system such as Azure Key Vault CSI Driver, External Secrets Operator, sealed-secrets, or equivalent.
 
-## 🛠️ Tech Stack
+## Troubleshooting
 
-<table>
-  <tr>
-    <th width="50%">Frontend (Clinical Interface)</th>
-    <th width="50%">Backend (RAG Engine)</th>
-  </tr>
-  <tr>
-    <td valign="top">
-      <ul>
-        <li><b>Framework:</b> Next.js 16 (App Router)</li>
-        <li><b>Styling:</b> Tailwind CSS v4</li>
-        <li><b>State:</b> Zustand + TanStack Query</li>
-        <li><b>Animation:</b> Framer Motion</li>
-        <li><b>Language:</b> TypeScript</li>
-      </ul>
-    </td>
-    <td valign="top">
-      <ul>
-        <li><b>API:</b> FastAPI (Python 3.10+)</li>
-        <li><b>Orchestration:</b> LangChain ≥0.3 + LangGraph ≥0.2</li>
-        <li><b>LLM:</b> Google Gemma 4 via the Gemini API by default</li>
-        <li><b>Embeddings:</b> Google Gemini 2 (3072-dim, multimodal)</li>
-        <li><b>Vector Search:</b> Azure AI Search (hybrid: vector + BM25)</li>
-        <li><b>PHI Detection:</b> Microsoft Presidio</li>
-        <li><b>Observability:</b> Optional LangSmith, disabled by default</li>
-      </ul>
-    </td>
-  </tr>
-</table>
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `401 Authentication required` | Missing JWT token | Login and pass `Authorization: Bearer <token>`. |
+| No users can log in locally | Demo admin is disabled | Set `ALLOW_DEMO_ADMIN=true` and a 12+ char `DEMO_ADMIN_PASSWORD`, then start with an empty users DB. |
+| Conservative extractive answer | Selected provider key is missing | Set `GOOGLE_API_KEY`, `OPENAI_API_KEY`, or switch to a running local provider. |
+| No retrieved sources | Azure Search disabled or empty | Enable/configure Azure Search and ingest documents. |
+| CORS errors in browser | Frontend origin not allowed | Add the frontend URL to `CORS_ALLOWED_ORIGINS`. |
+| Production startup rejects config | Weak secret or unsafe CORS/demo admin | Use a strong `JWT_SECRET_KEY`, no wildcard CORS with credentials, and disable demo admin. |
+| Ollama/vLLM calls fail | Local server not running or non-localhost URL | Start the local model server and keep `OLLAMA_BASE_URL`/`VLLM_BASE_URL` on localhost. |
+| LangSmith traces missing | External tracing disabled | Set `ENABLE_EXTERNAL_TRACING=true` and provide `LANGCHAIN_API_KEY` only if PHI egress is approved. |
 
----
-
-## 🧠 Deep Dive: Architecture
-
-```mermaid
-graph TD
-    User["Hospital Staff"] -->|Login| Auth["JWT Auth Layer"]
-    Auth -->|Token| API["FastAPI Endpoints"]
-
-    subgraph RBAC ["Role-Based Access Control"]
-        Auth --> RoleCheck{"Role & Dept Check"}
-        RoleCheck -->|Allowed| API
-        RoleCheck -->|Denied| Reject["403 Forbidden"]
-    end
-
-    subgraph Ingestion ["Multimodal Ingestion Pipeline"]
-        API -->|Upload| Loader["LoaderFactory"]
-        Loader --> TextParser["PDF / DOCX / XLSX"]
-        Loader --> ImageParser["PNG / JPG / DICOM"]
-        Loader --> AudioParser["MP3 / WAV / M4A"]
-        Loader --> VideoParser["MP4 / MOV"]
-    end
-
-    subgraph EmbeddingLayer ["Gemini Embedding 2 (3072-dim)"]
-        TextParser --> GeminiEmb["Native Multimodal Embeddings"]
-        ImageParser --> GeminiEmb
-        AudioParser --> GeminiEmb
-        VideoParser --> GeminiEmb
-    end
-
-    subgraph VectorDBs ["Department-Scoped Vector Indexes"]
-        GeminiEmb --> DB1[("dept_radiology")]
-        GeminiEmb --> DB2[("dept_nursing")]
-        GeminiEmb --> DB3[("dept_... ")]
-    end
-
-    subgraph RetrievalGraph ["Stateful RAG Pipeline - LangGraph"]
-        API -->|"Query + Departments"| ClarCheck{"🤔 Clarification Check"}
-        ClarCheck -->|Ambiguous| ClarEnd["🏁 End - Show Options"]
-        ClarCheck -->|Specific| Retriever["🔍 Retrieve"]
-        Retriever --> Grader{"📋 Document Grader"}
-        Grader -->|Relevant| Generator["⚡ Generate"]
-        Generator --> HalCheck{"🛡️ Hallucination Check"}
-        HalCheck -->|Grounded| Response["✅ Final Answer + Confidence"]
-    end
-
-    subgraph ClinicalIntel ["Gemma 4 Clinical Intelligence"]
-        API -->|"Quick Help"| CopilotSvc["🩺 Clinical Intelligence Service"]
-        CopilotSvc --> CopilotResp["Evidence-Based Answer + Sources"]
-    end
-
-    VectorDBs <--> Retriever
-```
-
----
-
-## ⚙️ Configuration
-
-Your instance can be customized entirely via the `.env` file:
-
-```env
-# AI Provider
-OPENAI_API_KEY=
-GOOGLE_API_KEY=
-LLM_PROVIDER=google_gemma
-LLM_MODEL=gemma-4-26b-a4b-it
-GOOGLE_GEMMA_MODEL=gemma-4-26b-a4b-it
-OPENAI_LLM_MODEL=gpt-4o
-GEMMA_THINKING_LEVEL=high
-EMBEDDING_MODEL=multimodal-embedding-002
-
-# Google Gemini (Multimodal Embeddings)
-EMBEDDING_PROVIDER=gemini
-EMBEDDING_DIMENSIONS=3072
-
-# JWT / Authentication
-JWT_SECRET_KEY=replace-with-a-local-random-secret
-JWT_ALGORITHM=HS256
-
-# Hospital Config (customize per deployment)
-HOSPITAL_DEPARTMENTS=radiology,pharmacy,nursing,laboratory,emergency,cardiology,oncology
-
-# LangSmith Observability (Optional)
-ENABLE_EXTERNAL_TRACING=false
-LANGCHAIN_TRACING_V2=false
-LANGCHAIN_API_KEY=
-LANGCHAIN_PROJECT=ClinIQ-Hospital-Beta
-```
-
----
-
-## 🏗️ Project Structure
+## Project Structure
 
 ```text
 ClinIQ/
 ├── app/
-│   ├── api/            # FastAPI routes & clinical intelligence endpoints
-│   ├── chat/           # RAG pipeline & Copilot service wrapper
-│   ├── core/           # Configuration, settings, constants
-│   ├── ingestion/      # Multimodal document loaders & chunking
-│   ├── retrieval/      # Vector search & hybrid retrieval
-│   ├── schemas/        # Pydantic models & request/response types
-│   ├── security/       # JWT auth, RBAC, Presidio PHI masking
-│   └── observability/  # LangSmith tracing & audit logging
-├── frontend/
-│   └── src/            # Next.js 16 App Router (TypeScript)
-├── aks/
-│   └── helm/           # Production Helm charts for Kubernetes
-├── data/               # Local runtime data; DB/vector artifacts are ignored
-├── tests/              # Unit & integration test suites
-├── scripts/            # Setup & utility scripts
-└── main.py             # Application entrypoint
+│   ├── api/            # FastAPI routes
+│   ├── chat/           # Provider adapters, local LLM adapter, chat history
+│   ├── core/           # Settings, logging, rate limiting
+│   ├── ingestion/      # Loaders, parsers, chunking, upsert pipeline
+│   ├── observability/  # LangSmith tracing helpers
+│   ├── retrieval/      # Azure Search store and LangGraph nodes
+│   ├── schemas/        # Pydantic request/response models
+│   └── security/       # Auth, RBAC, PHI masking, upload validation
+├── aks/helm/cliniq/    # Kubernetes chart
+├── data/               # Local runtime data, ignored by Git
+├── demo-automation/    # Demo screenshot automation
+├── docs/               # Security and design notes
+├── frontend/           # Next.js clinical interface
+├── scripts/            # Utility/data generation scripts
+├── static/             # Static fallback UI served by FastAPI
+├── tests/              # Unit and integration tests
+├── main.py             # FastAPI application entrypoint
+└── requirements.txt    # Backend runtime dependencies
 ```
 
----
+## License
 
-## ⚠️ Disclaimer
-**General Informational Use Only:** ClinIQ is an educational and research software project. It does **not** provide medical advice, diagnosis, or treatment protocols. It implements HIPAA-aware controls, but it is not certified HIPAA-compliant production software. Healthcare organizations deploying this system must conduct their own compliance, privacy, security, and clinical safety review before use with real PHI or clinical workflows.
-
----
-
-<div align="center">
-  <p>Built with ❤️ for healthcare teams who refuse to compromise on safety.</p>
-  <p>Designed and maintained by <a href="https://github.com/anudeepsrib">Anudeep</a>.</p>
-</div>
+See [LICENSE](LICENSE).
