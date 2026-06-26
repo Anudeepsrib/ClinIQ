@@ -1,16 +1,23 @@
 # ClinIQ
 
-ClinIQ is a healthcare RAG demo and reference implementation for hospital policy search, role-scoped retrieval, and clinical quick-help workflows. It is designed for local experimentation and architecture review with HIPAA-aware controls, not as certified clinical or compliance software.
+ClinIQ is a focused hospital policy RAG reference app. It helps hospital staff ask role-scoped questions against institutional policy, procedure, coverage, and administrative documents, then returns conservative answers with source context.
 
-The app combines a FastAPI backend, a LangGraph RAG pipeline, a Next.js clinical interface, Google Gemma 4 model routing, Gemini multimodal embeddings, Azure AI Search-ready retrieval, JWT/RBAC enforcement, PHI masking, and optional LangSmith tracing.
+ClinIQ is intentionally narrower than CareOS. CareOS can remain the broader care operations or healthcare platform story; ClinIQ is the policy retrieval and evaluation reference app that demonstrates how hospital knowledge can be searched, cited, masked, and tested.
+
+ClinIQ is not certified clinical, compliance, or HIPAA software. The controls in this repository are implementation patterns for local experimentation, demos, architecture review, and evaluation design.
 
 ![ClinIQ interface](frontend/public/assets/01_Initial_Interface.png)
 
 ## Contents
 
+- [What ClinIQ Is](#what-cliniq-is)
+- [ClinIQ Vs CareOS](#cliniq-vs-careos)
 - [What It Does](#what-it-does)
 - [Safety And Scope](#safety-and-scope)
 - [Architecture](#architecture)
+- [Evaluation Pack](#evaluation-pack)
+- [Persona Demo](#persona-demo)
+- [Screenshots](#screenshots)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
@@ -22,6 +29,37 @@ The app combines a FastAPI backend, a LangGraph RAG pipeline, a Next.js clinical
 - [Troubleshooting](#troubleshooting)
 - [Project Structure](#project-structure)
 
+## What ClinIQ Is
+
+ClinIQ is a reference implementation for a bounded RAG product:
+
+- Product scope: hospital policy and administrative reference.
+- Primary users: nurse, administrator, compliance reviewer, and other authenticated staff.
+- Knowledge scope: institutional documents that have been ingested into department-scoped indexes.
+- Answer style: source-backed, conservative, and clear about missing evidence.
+- Evaluation scope: synthetic policy corpus, retrieval test dataset, groundedness checks, RBAC matrix, and PHI masking examples.
+
+Non-goals:
+
+- It is not a care management platform.
+- It is not an EHR, patient charting workflow, case management system, or care coordination layer.
+- It does not provide diagnosis, treatment instructions, medical advice, or clinical decision support certification.
+- It does not make a deployment HIPAA-compliant by itself.
+
+## ClinIQ Vs CareOS
+
+| Dimension | ClinIQ | CareOS |
+| --- | --- | --- |
+| Product role | Focused hospital policy RAG reference app | Broader care operations or healthcare platform |
+| Primary job | Retrieve and summarize institutional policy documents with citations | Coordinate workflows, patients, tasks, care programs, or operations |
+| Knowledge boundary | Ingested hospital policies, SOPs, coverage tables, and administrative rules | Potentially many operational, clinical, financial, and patient-context systems |
+| User experience | Ask a policy question, choose department scope, review cited answer | Manage end-to-end care or operational workflows |
+| Risk posture | Demonstrates RBAC, PHI masking, grounding, and evaluation patterns | Would need broader product, workflow, safety, integration, and compliance governance |
+| Success metric | Retrieval hit rate, groundedness, source coverage, RBAC enforcement, PHI masking | Operational outcomes, workflow completion, care team coordination, program KPIs |
+| Compliance claim | HIPAA-aware implementation patterns only | Any compliance posture must be separately defined and validated |
+
+See [docs/cliniq-vs-careos.md](docs/cliniq-vs-careos.md) for the fuller positioning note.
+
 ## What It Does
 
 - Answers hospital policy questions through a stateful LangGraph RAG pipeline.
@@ -30,14 +68,14 @@ The app combines a FastAPI backend, a LangGraph RAG pipeline, a Next.js clinical
 - Uses clarification, relevance grading, generation, hallucination checking, and retry nodes to keep answers conservative.
 - Supports hosted Google Gemma 4, Azure/OpenAI, local Ollama, and local vLLM provider modes.
 - Supports multimodal ingestion paths for PDF, DOCX, XLSX, images, DICOM, audio, and video metadata/chunks.
-- Includes a Next.js clinical interface plus a static fallback UI served by FastAPI.
-- Ships deployment-oriented Helm templates for Kubernetes/AKS-style environments.
+- Includes a Next.js policy reference interface plus a static fallback UI served by FastAPI.
+- Ships Helm templates that can be adapted for Kubernetes or AKS-style evaluation environments.
 
 ## Safety And Scope
 
-ClinIQ is educational and experimental software. It does not provide medical advice, diagnosis, treatment protocols, or production HIPAA compliance by itself.
+ClinIQ is educational and experimental software. It does not provide medical advice, diagnosis, treatment protocols, legal advice, or production compliance by itself.
 
-Before using real PHI or clinical workflows, an organization must complete legal review, clinical safety review, threat modeling, identity-management integration, audit-retention planning, secrets/KMS design, storage encryption, backup/restore validation, monitoring, incident response, and deployment hardening.
+Before using real PHI or live hospital workflows, an organization must complete legal review, clinical safety review, threat modeling, identity-management integration, audit-retention planning, secrets/KMS design, storage encryption, backup/restore validation, monitoring, incident response, and deployment hardening.
 
 Security defaults are conservative:
 
@@ -46,6 +84,7 @@ Security defaults are conservative:
 - Runtime DBs, vector stores, temp files, API keys, and `.env` files are ignored.
 - Production startup rejects weak JWT secrets and wildcard CORS with credentials.
 - The generation prompt treats retrieved documents as untrusted content.
+- The app fails closed when it cannot verify groundedness.
 
 See [docs/security-hardening.md](docs/security-hardening.md) for more detail.
 
@@ -58,16 +97,16 @@ graph TD
     API --> Auth["JWT auth and RBAC"]
     Auth --> Dept["Department scope"]
 
-    API --> Graph["LangGraph RAG pipeline"]
+    API --> Graph["LangGraph policy RAG pipeline"]
     Graph --> Clarify["Clarification check"]
     Clarify --> Retrieve["Azure AI Search retrieval"]
     Retrieve --> Grade["Document relevance grading"]
-    Grade --> Generate["Answer generation"]
-    Generate --> Verify["Hallucination check"]
+    Grade --> Generate["Policy answer generation"]
+    Generate --> Verify["Groundedness check"]
     Verify --> Response["Answer, sources, confidence"]
 
-    API --> Intel["Clinical quick-help endpoint"]
-    Intel --> Provider["Gemma 4 / Azure OpenAI / Ollama / vLLM"]
+    API --> QuickHelp["Policy quick-help endpoint"]
+    QuickHelp --> Provider["Gemma 4 / Azure OpenAI / Ollama / vLLM"]
 
     API --> Ingest["Upload and ingestion"]
     Ingest --> Parse["PDF, DOCX, XLSX, image, DICOM, audio, video"]
@@ -80,13 +119,58 @@ graph TD
 
 The backend can start without external credentials. Real synthesis requires the selected LLM provider credentials, and real retrieval requires Azure AI Search to be enabled and configured.
 
+Architecture notes live in [docs/architecture-notes.md](docs/architecture-notes.md).
+
+## Evaluation Pack
+
+The repo includes a synthetic policy evaluation pack under [tests/evaluation](tests/evaluation):
+
+| Artifact | Purpose |
+| --- | --- |
+| [tests/evaluation/policy_corpus](tests/evaluation/policy_corpus) | Synthetic hospital policy corpus for nursing, administration, compliance, and radiology examples. |
+| [tests/evaluation/retrieval_eval_dataset.jsonl](tests/evaluation/retrieval_eval_dataset.jsonl) | Retrieval questions with personas, allowed departments, expected documents, expected terms, and unsupported-answer traps. |
+| [tests/evaluation/rbac_test_matrix.json](tests/evaluation/rbac_test_matrix.json) | Role and department matrix for nurse, admin, and compliance reviewer personas. |
+| [tests/evaluation/phi_masking_examples.json](tests/evaluation/phi_masking_examples.json) | PHI masking examples for names, phones, emails, SSNs, and preservation of non-PHI policy text. |
+| [tests/evaluation/README.md](tests/evaluation/README.md) | How to use the evaluation fixtures and what each artifact proves. |
+
+Regression tests validate the artifacts and core controls:
+
+- [tests/test_policy_eval_artifacts.py](tests/test_policy_eval_artifacts.py)
+- [tests/test_rag_safety.py](tests/test_rag_safety.py)
+- [tests/test_rbac_matrix.py](tests/test_rbac_matrix.py)
+- [tests/test_phi_masking_examples.py](tests/test_phi_masking_examples.py)
+
+## Persona Demo
+
+The persona script in [docs/demo-script.md](docs/demo-script.md) walks through three focused demos:
+
+- Nurse: asks for isolation and hand-hygiene policy steps from the nursing corpus.
+- Admin: reviews policy lifecycle, emergency approval, and department stats.
+- Compliance reviewer: checks minimum necessary disclosure, PHI masking, and audit-oriented access.
+
+The script is designed for a portfolio walkthrough or evaluator review. It uses synthetic policy examples and avoids live patient data.
+
+## Screenshots
+
+Existing screenshots live in [frontend/public/assets](frontend/public/assets):
+
+![Initial interface](frontend/public/assets/01_Initial_Interface.png)
+
+![Clarification requested](frontend/public/assets/02_Clarification_Requested.png)
+
+![RBAC and masking](frontend/public/assets/03_RBAC_Inline_Masking.png)
+
+![Standard retrieval](frontend/public/assets/04_Standard_Retrieval.png)
+
+The screenshot guide in [docs/screenshots.md](docs/screenshots.md) explains the product story each image should support.
+
 ## Prerequisites
 
 - Python 3.11 recommended.
 - Node.js 22 recommended for the frontend.
 - `npm` for frontend dependency installation.
 - Optional: Google AI Studio API key for hosted Gemma 4 and Gemini embeddings.
-- Optional: Azure AI Search service and key for production retrieval.
+- Optional: Azure AI Search service and key for retrieval evaluation with a real index.
 - Optional: Ollama or vLLM running locally for local model modes.
 
 ## Quick Start
@@ -232,11 +316,11 @@ Full local defaults live in [.env.example](.env.example).
 | Ollama | `ollama` | Local Ollama on `OLLAMA_BASE_URL` | Traffic is restricted to localhost by default. |
 | vLLM | `vllm` | Local vLLM OpenAI-compatible server on `VLLM_BASE_URL` | Traffic is restricted to localhost by default. |
 
-The UI model switcher sends the selected provider with both standard RAG queries and clinical quick-help requests.
+The UI model switcher sends the selected provider with both standard RAG queries and policy quick-help requests.
 
 ## Working With Data
 
-Sample documents are expected under `data/docs`, but runtime data is ignored by Git. The ingestion endpoint accepts supported document uploads and registers versions through the document registry.
+Sample runtime documents are expected under `data/docs`, but runtime data is ignored by Git. The committed synthetic evaluation corpus lives under `tests/evaluation/policy_corpus`.
 
 For real retrieval:
 
@@ -271,26 +355,26 @@ curl -X POST http://127.0.0.1:8000/api/v1/query \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "What is the MRI authorization policy?",
-    "departments": ["radiology"],
+    "question": "What approval is required before an emergency policy exception?",
+    "departments": ["administration"],
     "provider": "google_gemma"
   }'
 ```
 
-### Clinical Quick Help
+### Policy Quick Help
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/copilot/quick-help \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "question": "Summarize key safety checks before heparin administration.",
+    "question": "Summarize the hand hygiene policy for an isolation room entry.",
     "department": "nursing",
     "provider": "google_gemma"
   }'
 ```
 
-The route keeps the `/copilot/quick-help` path for compatibility, but the implementation is now a configurable clinical intelligence provider.
+The route keeps the `/copilot/quick-help` path for compatibility, but the implementation is scoped as configurable policy reference help.
 
 ### Upload A Document
 
@@ -327,13 +411,13 @@ Security/dependency audit:
 pip-audit -r requirements.txt
 ```
 
-Optional evaluation scripts live under `tests/evaluation`. They require optional RAGAS dependencies that are intentionally not part of the default runtime install.
+Optional RAGAS evaluation scripts live under `tests/evaluation`. They require optional RAGAS dependencies that are intentionally not part of the default runtime install.
 
 ## Deployment
 
 ### Render
 
-`render.yaml` includes a Python web service definition. Configure runtime secrets in Render, especially:
+`render.yaml` includes a Python web service definition for evaluation or demo environments. Configure runtime secrets in Render, especially:
 
 - `JWT_SECRET_KEY`
 - `GOOGLE_API_KEY` or the provider key you choose
@@ -391,11 +475,11 @@ ClinIQ/
 ├── aks/helm/cliniq/    # Kubernetes chart
 ├── data/               # Local runtime data, ignored by Git
 ├── demo-automation/    # Demo screenshot automation
-├── docs/               # Security and design notes
-├── frontend/           # Next.js clinical interface
+├── docs/               # Architecture, positioning, security, screenshots, demo notes
+├── frontend/           # Next.js policy reference interface
 ├── scripts/            # Utility/data generation scripts
 ├── static/             # Static fallback UI served by FastAPI
-├── tests/              # Unit and integration tests
+├── tests/              # Unit, integration, and evaluation artifact tests
 ├── main.py             # FastAPI application entrypoint
 └── requirements.txt    # Backend runtime dependencies
 ```

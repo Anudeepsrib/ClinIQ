@@ -7,7 +7,7 @@ Provides:
   role, and user in the LangSmith dashboard.
 - ``get_langsmith_client``    — lazy singleton for the LangSmith SDK client.
 - ``create_feedback``         — wraps ``client.create_feedback()`` for
-  clinician correction / feedback loops.
+  policy answer correction / feedback loops.
 """
 
 import hashlib
@@ -131,7 +131,7 @@ def create_feedback(
     Submit clinician feedback to LangSmith for a specific run.
 
     This is the **Gold Standard** for healthcare AI observability: when a
-    doctor or nurse corrects the chatbot, the correction is recorded
+    staff reviewer corrects the answer, the correction is recorded
     against the original trace so the team can measure accuracy over time.
 
     Args:

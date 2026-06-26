@@ -1,4 +1,4 @@
-"""Clinical intelligence service for quick medical reference lookups."""
+"""Policy quick-help service for bounded staff reference lookups."""
 
 import logging
 from typing import Optional
@@ -12,23 +12,24 @@ from app.security.pii import pii_manager
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# System prompt for concise, source-aware clinical reference answers.
+# System prompt for concise, source-aware policy reference answers.
 # ---------------------------------------------------------------------------
 COPILOT_HEALTH_SYSTEM_PROMPT = (
-    "You are a clinical quick-help assistant integrated into the ClinIQ hospital system. "
-    "Your role is to provide fast, accurate, evidence-based medical information to doctors "
-    "and nurses during their shifts. You must:\n"
-    "1. Cite credible medical sources (UpToDate, PubMed, institutional guidelines).\n"
-    "2. Clearly state when a question requires specialist consultation.\n"
-    "3. Never provide definitive diagnoses — only reference-grade information.\n"
-    "4. Prioritize drug interactions, dosage guidelines, differential diagnoses, and protocol lookups.\n"
+    "You are a policy quick-help assistant integrated into the ClinIQ hospital system. "
+    "Your role is to provide concise reference-grade answers about institutional "
+    "policies, procedures, documentation requirements, coverage tables, and escalation paths. "
+    "You must:\n"
+    "1. Use supplied policy context when present and cite source titles when possible.\n"
+    "2. State when the available context is insufficient.\n"
+    "3. Never provide diagnosis, treatment, legal advice, or compliance certification.\n"
+    "4. Prioritize policy requirements, approval paths, documentation steps, and role boundaries.\n"
     "5. Always include a safety disclaimer.\n"
-    "Format responses concisely for quick scanning in a clinical environment."
+    "Format responses concisely for quick scanning by hospital staff."
 )
 
 
 class CopilotHealthService:
-    """Async service wrapping the configured clinical intelligence provider."""
+    """Async service wrapping the configured policy reference provider."""
 
     def __init__(self):
         self._http_client: Optional[httpx.AsyncClient] = None
@@ -45,7 +46,7 @@ class CopilotHealthService:
         user_id: str,
     ) -> CopilotHelpResponse:
         """
-        Query the configured provider for quick medical intelligence.
+        Query the configured provider for quick policy reference help.
         Routes between hosted Gemma 4, Azure/OpenAI, and local Gemma 4 providers.
         """
         try:
@@ -67,10 +68,10 @@ class CopilotHealthService:
             )
 
         except Exception as e:
-            logger.error("Clinical intelligence service error: %s", redact_text(e))
+            logger.error("Policy quick-help service error: %s", redact_text(e))
             return CopilotHelpResponse(
                 answer=(
-                    "I'm currently unable to reach the medical intelligence service. "
+                    "I'm currently unable to reach the policy quick-help service. "
                     "Please try again shortly or consult your department's reference materials."
                 ),
                 sources=[],
@@ -87,7 +88,7 @@ class CopilotHealthService:
         provider: Optional[str] = None,
     ) -> tuple[str, list[CopilotSource]]:
         """
-        Call the underlying AI service for medical intelligence.
+        Call the underlying AI service for policy reference help.
         Supports hosted Google Gemma 4, Azure/OpenAI, and local Gemma 4.
         """
         from app.chat.llm_provider import (
@@ -105,7 +106,7 @@ class CopilotHealthService:
 
         user_prompt = safe_question
         if safe_context:
-            user_prompt = f"Clinical context: {safe_context}\n\nQuestion: {safe_question}"
+            user_prompt = f"Policy context: {safe_context}\n\nQuestion: {safe_question}"
         if department:
             user_prompt += f"\n\n(Department: {department}, Role: {user_role})"
 
@@ -121,7 +122,7 @@ class CopilotHealthService:
             
             sources = [
                 CopilotSource(
-                    title=f"Gemma 4 ({active_provider.upper()}) — Local Clinical Intel",
+                    title=f"Gemma 4 ({active_provider.upper()}) - Local Policy Reference",
                     url="http://localhost",
                     provider=provider_display_name(active_provider),
                 )
@@ -138,7 +139,7 @@ class CopilotHealthService:
             
             sources = [
                 CopilotSource(
-                    title=f"{provider_display_name(active_provider)} — Medical Intelligence",
+                    title=f"{provider_display_name(active_provider)} - Policy Reference",
                     url="https://ai.google.dev/gemma/docs/core/gemma_on_gemini_api"
                     if active_provider == "google_gemma"
                     else "https://platform.openai.com/docs/models",

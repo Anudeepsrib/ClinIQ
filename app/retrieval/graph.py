@@ -16,7 +16,7 @@ than guessing.
 
 Conditional routing ensures the pipeline retries with query transformation
 when documents are irrelevant, and regenerates when the answer is not grounded
-in the clinical context. Retries are capped at ``MAX_QUERY_RETRIES`` (default 3).
+in the retrieved policy context. Retries are capped at ``MAX_QUERY_RETRIES`` (default 3).
 """
 
 import logging

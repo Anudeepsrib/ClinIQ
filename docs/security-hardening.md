@@ -1,5 +1,7 @@
 # Security Hardening Notes
 
+ClinIQ demonstrates HIPAA-aware control patterns for a hospital policy RAG reference app. These notes do not certify HIPAA compliance or production readiness.
+
 ## CORS
 
 CORS is driven by `CORS_ALLOWED_ORIGINS`. Development defaults are localhost-only. Production rejects wildcard origins when credentials are enabled.
@@ -22,7 +24,7 @@ Document ingestion validates file size, extension, MIME type, and filename safet
 
 ## RAG Prompt Injection
 
-The generation prompt treats retrieved documents as untrusted content and instructs the model not to follow document-embedded instructions. The hallucination checker fails closed if verification cannot run. The assistant should cite sources and avoid diagnosis or treatment advice.
+The generation prompt treats retrieved documents as untrusted content and instructs the model not to follow document-embedded instructions. The hallucination checker fails closed if verification cannot run. The assistant should cite sources and avoid diagnosis, treatment advice, legal advice, or compliance certification.
 
 ## Remaining Production Work
 

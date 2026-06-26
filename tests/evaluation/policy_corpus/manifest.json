@@ -1,0 +1,40 @@
+{
+  "corpus_name": "cliniq_synthetic_hospital_policy_corpus",
+  "version": "2026-06-26",
+  "synthetic": true,
+  "disclaimer": "Synthetic policy examples for RAG evaluation only. No real patient data, no legal effect, and no production compliance claim.",
+  "documents": [
+    {
+      "doc_id": "NUR-IC-001",
+      "filename": "NUR-IC-001-hand-hygiene-isolation.md",
+      "title": "Hand Hygiene And Isolation Room Entry",
+      "department": "nursing",
+      "personas": ["nurse"],
+      "expected_terms": ["foam in/foam out", "contact precautions", "isolation cart", "unit nurse manager"]
+    },
+    {
+      "doc_id": "ADM-DOC-002",
+      "filename": "ADM-DOC-002-policy-lifecycle.md",
+      "title": "Policy Lifecycle And Emergency Exceptions",
+      "department": "administration",
+      "personas": ["admin"],
+      "expected_terms": ["department director", "policy office", "five business days", "30 days"]
+    },
+    {
+      "doc_id": "CMP-PHI-003",
+      "filename": "CMP-PHI-003-minimum-necessary.md",
+      "title": "Minimum Necessary Disclosure For Audit Packets",
+      "department": "administration",
+      "personas": ["compliance_reviewer"],
+      "expected_terms": ["minimum necessary", "direct identifiers", "approved audit request", "external tracing"]
+    },
+    {
+      "doc_id": "RAD-MRI-004",
+      "filename": "RAD-MRI-004-mri-authorization.md",
+      "title": "MRI Authorization And Coverage Reference",
+      "department": "radiology",
+      "personas": ["admin", "radiology_staff"],
+      "expected_terms": ["non-urgent MRI", "payer authorization", "radiologist on call", "ordering provider attestation"]
+    }
+  ]
+}

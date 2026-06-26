@@ -1,5 +1,5 @@
 """
-Document Grader node — checks if retrieved medical documents are relevant
+Document Grader node — checks if retrieved policy documents are relevant
 to the user's question before passing them to the generation step.
 """
 
@@ -33,19 +33,20 @@ class GradeDocuments(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Grading prompt — healthcare-tuned
+# Grading prompt — hospital-policy tuned
 # ---------------------------------------------------------------------------
 
 GRADER_SYSTEM_PROMPT = """\
-You are a clinical document relevance grader for a hospital knowledge system.
+You are a hospital policy document relevance grader for a knowledge system.
 
 Given a user question and a retrieved document, determine if the document
 is relevant to answering the question.
 
 Relevance criteria:
 - The document contains keywords or semantic meaning related to the question.
-- Clinical terminology, procedure codes (ICD/CPT), drug names, or dosing
-  guidelines that match the clinical intent of the question count as relevant.
+- Clinical terminology, procedure codes (ICD/CPT), drug names, authorization
+  rules, or documentation requirements that match the policy intent of the
+  question count as relevant.
 - Policy documents that address the department or topic in the question are
   relevant even if they use different phrasing.
 
@@ -65,7 +66,7 @@ def grade_documents(state: GraphState) -> Dict[str, Any]:
     """
     Determines whether retrieved documents are relevant to the question.
 
-    Filters out irrelevant documents so only clinically relevant context
+    Filters out irrelevant documents so only policy-relevant context
     is passed to the generation step.
 
     Args:

@@ -1,6 +1,6 @@
 """
 Hallucination Grader node — verifies that the generated answer is fully
-grounded in the retrieved clinical context.
+grounded in the retrieved policy context.
 
 If the answer contains claims not supported by the documents, this node
 flags it so the graph can route back to regeneration.
@@ -43,20 +43,20 @@ class GradeHallucination(BaseModel):
 # ---------------------------------------------------------------------------
 
 HALLUCINATION_SYSTEM_PROMPT = """\
-You are a clinical accuracy auditor for a hospital AI system.
+You are a policy-grounding auditor for a hospital AI system.
 
 You will be given:
-1. A set of retrieved medical/policy documents (the FACTS).
+1. A set of retrieved policy documents (the FACTS).
 2. An AI-generated answer.
 
 Your task: determine if the answer is fully grounded in the FACTS.
 
 Rules:
 - Every factual claim in the answer MUST be supported by the documents.
-- Medical dosages, procedure steps, drug interactions, and policy details
-  must exactly match what the documents state.
+- Procedure steps, approval paths, documentation requirements, and policy
+  details must exactly match what the documents state.
 - Generic transitional phrases ("Based on the documents…") are acceptable.
-- If the answer adds ANY clinical detail not present in the documents,
+- If the answer adds ANY policy, clinical, legal, or compliance detail not present in the documents,
   score 'no'.
 
 Return 'yes' if grounded, 'no' if hallucinated."""

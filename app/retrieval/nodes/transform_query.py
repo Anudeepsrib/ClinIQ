@@ -2,7 +2,7 @@
 Query Transformer node — rewrites the user's question to improve retrieval
 recall when the initial search returns no relevant documents.
 
-Healthcare-aware: expands medical abbreviations, adds clinical synonyms,
+Hospital-policy aware: expands common abbreviations, adds policy synonyms,
 and tracks every rewrite in the audit trail.
 """
 
@@ -23,19 +23,19 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Rewrite prompt — healthcare-aware
+# Rewrite prompt — hospital-policy aware
 # ---------------------------------------------------------------------------
 
 REWRITE_SYSTEM_PROMPT = """\
-You are a medical query optimizer for a hospital knowledge retrieval system.
+You are a policy query optimizer for a hospital knowledge retrieval system.
 
 The user's original question did not return relevant documents.  Your job
 is to rewrite the question to improve search recall.
 
 Strategies:
 1. Expand medical abbreviations (e.g. "BP" → "blood pressure").
-2. Add clinical synonyms (e.g. "heart attack" ↔ "myocardial infarction").
-3. Broaden overly specific queries while keeping clinical intent.
+2. Add policy synonyms (e.g. "prior auth" -> "prior authorization").
+3. Broaden overly specific queries while keeping policy intent.
 4. Include related procedure codes or drug class names when appropriate.
 5. Rephrase for clarity without changing the meaning.
 

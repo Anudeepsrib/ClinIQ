@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="HIPAA-aware demo/reference RAG for healthcare policies and guidelines",
+    description=(
+        "Hospital policy RAG reference app with HIPAA-aware control patterns; "
+        "not certified compliance software"
+    ),
     version="1.0.0",
     docs_url=None if settings.is_production else "/docs",
     redoc_url=None if settings.is_production else "/redoc",

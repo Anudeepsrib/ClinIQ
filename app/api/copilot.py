@@ -1,9 +1,8 @@
 """
-Clinical intelligence API router — Quick-help medical intelligence for staff.
+Policy quick-help API router for staff reference lookups.
 
-Exposes a POST endpoint that allows doctors and nurses to get fast,
-evidence-based answers to clinical questions through the ClinIQ interface,
-powered by the configured Gemma/OpenAI provider.
+Exposes a POST endpoint that lets authorized staff get concise policy-reference
+answers through the ClinIQ interface, powered by the configured provider.
 """
 
 import logging
@@ -19,7 +18,7 @@ from app.security.rbac import require_role
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/copilot", tags=["Clinical Intelligence"])
+router = APIRouter(prefix="/copilot", tags=["Policy Quick Help"])
 NurseUser = Annotated[dict, Depends(require_role("nurse"))]
 
 
@@ -31,10 +30,10 @@ async def copilot_quick_help(
     user: NurseUser,  # nurse-level and above (nurse, doctor, admin)
 ):
     """
-    Get quick medical intelligence from the configured provider.
+    Get quick policy-reference help from the configured provider.
 
-    Accessible to nurses, doctors, and admins. Returns evidence-based
-    clinical information with source citations and a safety disclaimer.
+    Accessible to nurses, doctors, and admins. Returns bounded policy
+    reference information with a safety disclaimer.
     """
     try:
         response = await copilot_health_service.get_quick_help(
@@ -44,8 +43,8 @@ async def copilot_quick_help(
         )
         return response
     except Exception as e:
-        logger.exception("Clinical intelligence error: %s", redact_text(e))
+        logger.exception("Policy quick-help error: %s", redact_text(e))
         raise HTTPException(
             status_code=500,
-            detail="Clinical intelligence service unavailable",
+            detail="Policy quick-help service unavailable",
         ) from e

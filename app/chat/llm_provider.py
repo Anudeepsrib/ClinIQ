@@ -94,7 +94,7 @@ def get_chat_model(
     temperature: float = 0.0,
     max_tokens: Optional[int] = None,
 ) -> BaseChatModel:
-    """Build the configured chat model for RAG and clinical quick-help calls."""
+    """Build the configured chat model for RAG and policy quick-help calls."""
     active_provider = resolve_llm_provider(provider)
 
     if active_provider == "google_gemma":

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ClinIQ — Enterprise Healthcare RAG</title>
-    <meta name="description" content="Secure, multimodal RAG system for hospital policy and clinical guidelines with department-scoped access.">
+    <title>ClinIQ - Hospital Policy RAG</title>
+    <meta name="description" content="Hospital policy RAG reference app with department-scoped access, source-backed answers, and PHI masking examples.">
     <link rel="stylesheet" href="/static/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
@@ -25,7 +25,7 @@
                     </svg>
                 </div>
                 <h1>Clin<span>IQ</span></h1>
-                <p>Enterprise Healthcare RAG</p>
+                <p>Hospital Policy RAG</p>
             </div>
             <form id="loginForm" autocomplete="off">
                 <div class="form-group">
@@ -189,12 +189,12 @@
                         </svg>
                     </div>
                     <h2>How can I help you today?</h2>
-                    <p>Ask me anything about your department's clinical guidelines, hospital policies, coverage tables, or prior authorization requirements.</p>
+                    <p>Ask about your department's hospital policies, coverage tables, SOPs, or prior authorization requirements.</p>
                     <div class="suggestion-grid">
                         <button class="suggestion-card" onclick="usesuggestion(this)">What are the prior auth requirements for MRI scans?</button>
                         <button class="suggestion-card" onclick="usesuggestion(this)">Summarize the infection control policy for ICU.</button>
-                        <button class="suggestion-card" onclick="usesuggestion(this)">What medications require dual sign-off?</button>
-                        <button class="suggestion-card" onclick="usesuggestion(this)">Show coverage criteria for cardiac stenting.</button>
+                        <button class="suggestion-card" onclick="usesuggestion(this)">What policy changes require emergency approval?</button>
+                        <button class="suggestion-card" onclick="usesuggestion(this)">What identifiers should be removed from audit packets?</button>
                     </div>
                 </div>
 
@@ -206,7 +206,7 @@
             <div class="input-area">
                 <div class="input-inner">
                     <div class="input-box">
-                        <textarea id="questionInput" placeholder="Ask about coverage, prior auth, clinical guidelines…" rows="1" onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
+                        <textarea id="questionInput" placeholder="Ask about policy, coverage, prior auth, or SOPs..." rows="1" onkeydown="handleEnter(event)" oninput="autoResize(this)"></textarea>
                         <button class="send-btn" onclick="sendQuery()" id="sendBtn" title="Send (Enter)">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                                 <line x1="22" y1="2" x2="11" y2="13"/>
@@ -214,7 +214,7 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="input-hint">ClinIQ uses retrieval-augmented generation. Always verify critical clinical decisions.</p>
+                    <p class="input-hint">ClinIQ uses retrieval-augmented generation for policy reference. Verify against current institutional policy.</p>
                 </div>
             </div>
         </div><!-- /main-area -->
@@ -246,7 +246,7 @@
                             <line x1="12" y1="3" x2="12" y2="15"/>
                         </svg>
                     </div>
-                    <p>Drag & drop policies, coverage tables, or medical images</p>
+                    <p>Drag & drop policies, SOPs, coverage tables, or reference images</p>
                     <p class="file-types">PDF, DOCX, XLSX, PNG, JPG, TIFF, DICOM</p>
                     <input type="file" id="fileInput" hidden accept=".pdf,.docx,.xlsx,.xls,.png,.jpg,.jpeg,.tiff,.bmp,.dcm">
                     <button class="btn-secondary" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Select File</button>

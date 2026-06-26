@@ -1,0 +1,36 @@
+{
+  "version": "2026-06-26",
+  "notes": "Synthetic RBAC matrix for the ClinIQ hospital policy RAG reference app.",
+  "personas": [
+    {
+      "id": "nurse_maya",
+      "display_name": "Maya Patel",
+      "persona": "nurse",
+      "role": "nurse",
+      "departments": ["nursing", "emergency", "general"],
+      "query_allow": ["nursing", "emergency", "general"],
+      "query_deny": ["administration", "radiology"],
+      "admin_endpoints_allowed": false
+    },
+    {
+      "id": "admin_jordan",
+      "display_name": "Jordan Lee",
+      "persona": "admin",
+      "role": "admin",
+      "departments": ["radiology", "pharmacy", "administration", "nursing", "laboratory", "emergency", "cardiology", "oncology", "orthopedics", "pediatrics", "general"],
+      "query_allow": ["radiology", "pharmacy", "administration", "nursing", "laboratory", "emergency", "cardiology", "oncology", "orthopedics", "pediatrics", "general"],
+      "query_deny": [],
+      "admin_endpoints_allowed": true
+    },
+    {
+      "id": "compliance_elena",
+      "display_name": "Elena Chen",
+      "persona": "compliance_reviewer",
+      "role": "researcher",
+      "departments": ["administration", "general"],
+      "query_allow": ["administration", "general"],
+      "query_deny": ["nursing", "radiology"],
+      "admin_endpoints_allowed": false
+    }
+  ]
+}

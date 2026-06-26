@@ -1,0 +1,27 @@
+{
+  "version": "2026-06-26",
+  "notes": "Synthetic PHI-like examples for validating ClinIQ masking behavior. No real patient data.",
+  "examples": [
+    {
+      "id": "name_and_phone",
+      "input": "Does the visitor policy apply to John Doe at 555-123-4567?",
+      "must_mask": ["John Doe", "555-123-4567"],
+      "expected_token_prefixes": ["<PERSON_", "<PHONE_NUMBER_"],
+      "must_preserve": ["visitor policy"]
+    },
+    {
+      "id": "email_in_audit_note",
+      "input": "Can jane.patient@example.com be included in the audit packet summary?",
+      "must_mask": ["jane.patient@example.com"],
+      "expected_token_prefixes": ["<EMAIL_ADDRESS_"],
+      "must_preserve": ["audit packet summary"]
+    },
+    {
+      "id": "ssn_and_name",
+      "input": "Remove Mary Smith and 123-45-6789 from the policy review draft.",
+      "must_mask": ["Mary Smith", "123-45-6789"],
+      "expected_token_prefixes": ["<PERSON_", "<US_SSN_"],
+      "must_preserve": ["policy review draft"]
+    }
+  ]
+}

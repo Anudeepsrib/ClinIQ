@@ -14,13 +14,13 @@ export default function Home() {
       <header className="h-20 border-b border-border flex items-center justify-between px-8 bg-gradient-to-r from-black to-slate-900 border-b-gold-500/20 text-white shrink-0 z-10 shadow-sm">
         <div className="flex items-center gap-5">
           <div className="p-1 bg-white/5 rounded-md border border-white/10 shadow-inner">
-            <Image src="/logo.png" alt="Clinical Assistant Logo" width={56} height={56} className="drop-shadow-md" />
+            <Image src="/logo.png" alt="ClinIQ Policy Reference Logo" width={56} height={56} className="drop-shadow-md" />
           </div>
           <div className="flex flex-col">
             <h1 className="font-display font-bold text-xl text-white tracking-tight leading-none">
               City General Hospital
             </h1>
-            <span className="text-[10px] font-mono text-gold-500 uppercase tracking-widest mt-1">Enterprise Clinical System</span>
+            <span className="text-[10px] font-mono text-gold-500 uppercase tracking-widest mt-1">Hospital Policy Reference</span>
           </div>
         </div>
 
@@ -38,7 +38,7 @@ export default function Home() {
           <div className="flex flex-col items-end border-l border-slate-700 pl-6">
             <span className="text-[11px] text-slate-400 uppercase tracking-widest leading-none mb-1">Active Session</span>
             <span className="font-bold text-xs uppercase tracking-wider text-white leading-none">
-              Dr. House (Cardiology)
+              Policy Reviewer
             </span>
           </div>
         </div>
@@ -56,7 +56,7 @@ export default function Home() {
       </main>
 
       <footer className="h-8 border-t border-border flex items-center justify-center bg-slate-50 text-[10px] text-slate-400 font-mono uppercase tracking-widest shrink-0">
-        AI-assisted retrieval. Do not replace clinical judgment or direct patient assessment.
+        AI-assisted policy retrieval. Verify against current institutional policy.
       </footer>
     </div>
   );

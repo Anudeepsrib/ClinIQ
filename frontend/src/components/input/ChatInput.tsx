@@ -31,7 +31,7 @@ export function ChatInput() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type a clinical query or protocol request..."
+                    placeholder="Type a policy question or protocol request..."
                     className="w-full min-h-[60px] max-h-[200px] resize-none border-none focus:ring-0 text-sm bg-transparent !outline-none text-black placeholder:text-slate-400"
                     rows={1}
                 />

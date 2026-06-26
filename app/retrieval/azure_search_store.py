@@ -1,9 +1,9 @@
 """
-Azure AI Search Vector Store — department-scoped indexes for clinical RAG.
+Azure AI Search Vector Store — department-scoped indexes for policy RAG.
 
 Replaces the ChromaDB-based MultiCollectionVectorStore with Azure AI Search,
-providing enterprise-grade hybrid search (vector + BM25), native metadata
-filtering, and horizontal scaling — all behind the same public API surface.
+providing hybrid search (vector + BM25), native metadata filtering, and a
+deployment-ready shape behind the same public API surface.
 
 Architecture:
     Azure AI Search Service
