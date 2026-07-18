@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from app.core.config import Settings
+from app.core.config import Settings, settings
 from app.security.auth import create_access_token, user_db
 from main import app
 
@@ -61,6 +61,68 @@ def test_upload_rejects_path_traversal_filename():
     assert response.status_code == 400
 
 
+def test_upload_returns_upsert_contract():
+    token = _token_for("upsert_contract_user", departments=["general"])
+    result = {
+        "doc_id": "general_policy.pdf",
+        "filename": "policy.pdf",
+        "department": "general",
+        "change_type": "new",
+        "version": 1,
+        "chunk_count": 2,
+        "content_hash": "abc123",
+    }
+
+    with patch("app.api.routes.upsert_document", new=AsyncMock(return_value=result)):
+        response = client.post(
+            "/api/v1/ingest",
+            headers={"Authorization": f"Bearer {token}"},
+            data={"department": "general"},
+            files={"file": ("policy.pdf", b"%PDF-1.4", "application/pdf")},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["change_type"] == "new"
+    assert response.json()["chunk_count"] == 2
+    assert "chunks_count" not in response.json()
+
+
+def test_async_upload_job_completes_and_is_owner_scoped():
+    token = _token_for("async_ingest_user", departments=["general"])
+    other_token = _token_for("async_ingest_other", departments=["general"])
+    result = {
+        "doc_id": "general_policy.pdf",
+        "filename": "policy.pdf",
+        "department": "general",
+        "change_type": "new",
+        "version": 1,
+        "chunk_count": 2,
+        "content_hash": "abc123",
+    }
+
+    with patch("app.api.routes.upsert_document", new=AsyncMock(return_value=result)):
+        response = client.post(
+            "/api/v1/ingest/jobs",
+            headers={"Authorization": f"Bearer {token}"},
+            data={"department": "general"},
+            files={"file": ("policy.pdf", b"%PDF-1.4", "application/pdf")},
+        )
+
+    assert response.status_code == 202
+    assert response.json()["modality"] == "document"
+    job_id = response.json()["job_id"]
+    status_response = client.get(
+        f"/api/v1/ingest/jobs/{job_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert status_response.json()["status"] == "completed"
+    assert status_response.json()["result"]["chunk_count"] == 2
+    assert client.get(
+        f"/api/v1/ingest/jobs/{job_id}",
+        headers={"Authorization": f"Bearer {other_token}"},
+    ).status_code == 404
+
+
 def test_query_masks_phi_before_graph_invocation():
     token = _token_for("phi_scope_user", departments=["general"])
     captured_inputs = {}
@@ -88,3 +150,44 @@ def test_query_masks_phi_before_graph_invocation():
     assert "555-123-4567" not in captured_inputs["question"]
     assert "<PERSON_" in captured_inputs["question"]
     assert "<PHONE_NUMBER_" in captured_inputs["question"]
+
+
+def test_query_returns_feedback_run_id_when_tracing_is_enabled():
+    token = _token_for("feedback_run_user", departments=["general"])
+
+    async def fake_ainvoke(inputs, config=None):
+        assert config.get("run_id") is not None
+        return {"generation": "Policy answer", "documents": [], "hallucination_score": "yes"}
+
+    with (
+        patch.object(settings, "ENABLE_EXTERNAL_TRACING", True),
+        patch("app.api.routes.app_graph.ainvoke", new=AsyncMock(side_effect=fake_ainvoke)),
+    ):
+        response = client.post(
+            "/api/v1/query",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"question": "What is the policy?", "departments": ["general"]},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["feedback_enabled"] is True
+    assert response.json()["run_id"]
+
+
+def test_feedback_masks_phi_like_comment_before_external_tracing():
+    token = _token_for("feedback_mask_user", role="nurse", departments=["general"])
+
+    with patch("app.api.routes.ls_create_feedback", return_value=True) as create_feedback:
+        response = client.post(
+            "/api/v1/feedback",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "run_id": "11111111-1111-1111-1111-111111111111",
+                "score": 0,
+                "comment": "Call John Doe at 555-123-4567",
+            },
+        )
+
+    assert response.status_code == 200
+    assert "John Doe" not in create_feedback.call_args.kwargs["comment"]
+    assert "555-123-4567" not in create_feedback.call_args.kwargs["comment"]

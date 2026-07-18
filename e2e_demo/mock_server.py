@@ -1,19 +1,25 @@
+import asyncio
+from typing import List, Optional
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
-import time
-import asyncio
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
 
 class QueryRequest(BaseModel):
     question: str
@@ -35,6 +41,32 @@ class QueryResponse(BaseModel):
     response_type: str = "direct"
     options: List[str] = []
     masked: bool = False
+
+
+DEMO_USER = {
+    "id": 1,
+    "username": "demo",
+    "full_name": "Demo Policy Reviewer",
+    "role": "doctor",
+    "departments": ["general", "laboratory", "pharmacy"],
+    "is_active": True,
+    "created_at": "2026-01-01T00:00:00+00:00",
+}
+
+
+@app.get("/ready")
+async def ready():
+    return {"status": "ready", "checks": {"chat_history": "disabled"}}
+
+
+@app.post("/api/v1/auth/login")
+async def login(req: LoginRequest):
+    return {"access_token": "demo-token", "token_type": "bearer", "user": DEMO_USER}
+
+
+@app.get("/api/v1/auth/me")
+async def me():
+    return DEMO_USER
 
 @app.post("/api/v1/query", response_model=QueryResponse)
 async def query_documents(req: QueryRequest):

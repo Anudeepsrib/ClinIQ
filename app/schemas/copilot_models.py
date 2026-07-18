@@ -9,6 +9,7 @@ class CopilotHelpRequest(BaseModel):
     question: str = Field(..., min_length=1, description="The policy question to ask")
     context: Optional[str] = None  # optional policy or operational context
     department: Optional[str] = None
+    session_id: Optional[str] = None
     provider: Optional[Literal["google_gemma", "azure_openai", "ollama", "vllm"]] = Field(
         None,
         description=(

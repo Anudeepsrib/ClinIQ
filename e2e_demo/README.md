@@ -29,4 +29,4 @@ This folder contains a complete mock API server and a Playwright test script to 
    python e2e_demo/mock_demo.py
    ```
 
-The script will launch a headless browser, navigate the application, trigger the specific clinical scenarios, test the layout toggle, and save screenshots of each step in the `e2e_demo/` folder.
+The script signs in with the mock account, launches a headless browser, exercises clarification, masking, and standard retrieval, and saves screenshots in the `e2e_demo/` folder.

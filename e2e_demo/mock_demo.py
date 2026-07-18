@@ -1,6 +1,7 @@
-from playwright.sync_api import sync_playwright
 import time
-import os
+
+from playwright.sync_api import sync_playwright
+
 
 def run_demo():
     print("🚀 Starting True Full-Stack Mock Data Demo...")
@@ -12,6 +13,10 @@ def run_demo():
         try:
             print("1️⃣ Navigating to Local RAG Interface...")
             page.goto("http://localhost:3000", wait_until="networkidle")
+            page.fill('input[autocomplete="username"]', "demo")
+            page.fill('input[autocomplete="current-password"]', "demo")
+            page.click("button >> text='Sign in'")
+            page.wait_for_selector("textarea")
             page.screenshot(path="e2e_demo/01_Initial_Interface.png")
             print("   📸 Saved 01_Initial_Interface.png")
             
@@ -23,7 +28,7 @@ def run_demo():
             page.screenshot(path="e2e_demo/02_Clarification_Requested.png")
             print("   📸 Saved 02_Clarification_Requested.png")
             
-            print("3️⃣ Selecting Patient context...")
+            print("3️⃣ Selecting a clarification option...")
             page.click("button >> text='PATTERSON'")
             
             time.sleep(2.5)
@@ -37,15 +42,7 @@ def run_demo():
             time.sleep(2.5)
             page.screenshot(path="e2e_demo/04_Standard_Retrieval.png")
             print("   📸 Saved 04_Standard_Retrieval.png")
-            
-            print("5️⃣ Toggling Enterprise Layout...")
-            time.sleep(1.0)
-            page.evaluate("document.querySelector('header').querySelectorAll('button')[0].click()")
-            
-            time.sleep(1.5)
-            page.screenshot(path="e2e_demo/05_Layout_Toggle.png")
-            print("   📸 Saved 05_Layout_Toggle.png")
-            
+
             print("\n✅ True Full-Stack E2E Demo finished successfully!")
             
         except Exception as e:

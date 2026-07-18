@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Literal, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -39,20 +40,6 @@ class TokenResponse(BaseModel):
 # Ingestion schemas
 # ---------------------------------------------------------------------------
 
-class IngestRequest(BaseModel):
-    filename: str
-    content_type: str
-
-
-class IngestResponse(BaseModel):
-    file_id: str
-    filename: str
-    department: str = "general"
-    modality: str = "text"
-    status: str = "processed"
-    chunks_count: int
-
-
 class UpsertResponse(BaseModel):
     doc_id: str
     filename: str
@@ -62,6 +49,16 @@ class UpsertResponse(BaseModel):
     chunk_count: int
     content_hash: str
     previous_version: Optional[int] = None
+
+
+class IngestJobResponse(BaseModel):
+    job_id: str
+    filename: str
+    department: str
+    modality: str
+    status: Literal["queued", "processing", "completed", "failed"] = "queued"
+    result: Optional[UpsertResponse] = None
+    error: Optional[str] = None
 
 
 class DocumentInfo(BaseModel):
@@ -121,6 +118,8 @@ class QueryResponse(BaseModel):
     confidence_score: float = 0.0      # 0.0–1.0, average similarity of top sources
     response_type: str = "answer"      # "answer" | "clarification"
     options: List[str] = []            # clarification options (when response_type == "clarification")
+    run_id: Optional[str] = None
+    feedback_enabled: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -128,10 +127,10 @@ class QueryResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 class FeedbackRequest(BaseModel):
-    run_id: str
+    run_id: UUID
     key: str = "correctness"  # e.g. "correctness", "relevance", "safety"
     score: float = Field(ge=0.0, le=1.0)
-    comment: Optional[str] = None
+    comment: Optional[str] = Field(default=None, max_length=2000)
 
 
 class FeedbackResponse(BaseModel):

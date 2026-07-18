@@ -7,7 +7,7 @@ Stores and retrieves chat sessions with full RBAC isolation:
     - Admins can access any session for compliance auditing
     - Semantic search across past conversations ("What did I ask about heparin?")
 
-Backed by a ChromaDB instance hosted in Azure (Container App / VM).
+Backed by local persistent ChromaDB or a remote ChromaDB service.
 """
 
 import logging
@@ -96,19 +96,18 @@ class ChatHistoryStore:
     def __init__(self):
         self._client = None
         self._collection = None
-        self.embedding_fn = None
 
         if not settings.CHAT_HISTORY_ENABLED:
             logger.info("ChatHistoryStore disabled")
             return
 
-        host = getattr(settings, "AZURE_CHROMA_HOST", "localhost")
-        port = getattr(settings, "AZURE_CHROMA_PORT", 8000)
-        auth_token = getattr(settings, "AZURE_CHROMA_AUTH_TOKEN", "")
+        host = settings.AZURE_CHROMA_HOST
+        port = settings.AZURE_CHROMA_PORT
+        auth_token = settings.AZURE_CHROMA_AUTH_TOKEN
 
         if host == "localhost":
-            self._client = chromadb.Client()
-            logger.info("ChatHistoryStore: using in-memory ChromaDB")
+            self._client = chromadb.PersistentClient(path=settings.CHROMA_PERSIST_DIRECTORY)
+            logger.info("ChatHistoryStore: using local persistent ChromaDB")
         else:
             headers = {}
             if auth_token:
@@ -125,16 +124,9 @@ class ChatHistoryStore:
             metadata={"hnsw:space": "cosine"},
         )
 
-        if not settings.OPENAI_API_KEY:
-            logger.warning("ChatHistoryStore enabled but OPENAI_API_KEY is missing; semantic history disabled")
-            return
-
-        from langchain_openai import OpenAIEmbeddings
-
-        self.embedding_fn = OpenAIEmbeddings(
-            model=settings.EMBEDDING_MODEL,
-            api_key=settings.OPENAI_API_KEY,
-        )
+    @property
+    def enabled(self) -> bool:
+        return self._collection is not None
 
     def create_session(self, user_id: str, department: str = "") -> str:
         """Create a new chat session. Returns session_id."""
@@ -151,7 +143,7 @@ class ChatHistoryStore:
         department: str = "",
     ) -> ChatMessage:
         """Embed and store a single chat turn."""
-        if self._collection is None or self.embedding_fn is None:
+        if self._collection is None:
             logger.info("Chat history append skipped because storage is disabled")
             return ChatMessage(
                 role=role,
@@ -168,11 +160,8 @@ class ChatHistoryStore:
         doc_id = f"{session_id}_{msg_index}"
         now = datetime.now(timezone.utc).isoformat()
 
-        embedding = self.embedding_fn.embed_query(content)
-
         self._collection.add(
             ids=[doc_id],
-            embeddings=[embedding],
             documents=[content],
             metadatas=[{
                 "role": role,
@@ -237,13 +226,11 @@ class ChatHistoryStore:
         self, user_id: str, query: str, k: int = 10
     ) -> List[ChatMessage]:
         """Semantic search across a user's past conversations."""
-        if self._collection is None or self.embedding_fn is None:
+        if self._collection is None:
             return []
 
-        query_embedding = self.embedding_fn.embed_query(query)
-
         results = self._collection.query(
-            query_embeddings=[query_embedding],
+            query_texts=[query],
             n_results=k,
             where={"user_id": user_id},
             include=["documents", "metadatas", "distances"],

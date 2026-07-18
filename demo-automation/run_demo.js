@@ -1,6 +1,4 @@
 const puppeteer = require('puppeteer');
-const fs = require('fs');
-const path = require('path');
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -18,6 +16,10 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
     try {
         console.log("1️⃣ Navigating to Local RAG Interface...");
         await page.goto('http://localhost:3000', { waitUntil: 'networkidle0' });
+        await page.type('input[autocomplete="username"]', 'demo');
+        await page.type('input[autocomplete="current-password"]', 'demo');
+        await page.click('button[type="submit"]');
+        await page.waitForSelector('textarea');
         await page.screenshot({ path: '01_Initial_Interface.png' });
         console.log("   📸 Saved 01_Initial_Interface.png");
 
@@ -31,7 +33,7 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         await page.screenshot({ path: '02_Clarification_Requested.png' });
         console.log("   📸 Saved 02_Clarification_Requested.png (Shows dynamic inline buttons)");
 
-        console.log("3️⃣ Selecting Patient context for clarification...");
+        console.log("3️⃣ Selecting a clarification option...");
         // Find and click the button containing "PATTERSON" (Case insensitive for new uppercase design)
         const clicked = await page.evaluate(() => {
             const buttons = Array.from(document.querySelectorAll('button'));
@@ -47,10 +49,10 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
             console.log("   ❌ Could not find the clarification button!");
         }
 
-        // Wait for system to switch Focus Drawer and stream response
+        // Wait for the selected clarification response and inline mask.
         await delay(2500);
         await page.screenshot({ path: '03_RBAC_Inline_Masking.png' });
-        console.log("   📸 Saved 03_RBAC_Inline_Masking.png (Shows active context drawer & redacted PHI)");
+        console.log("   📸 Saved 03_RBAC_Inline_Masking.png (Shows inline masking)");
 
         console.log("4️⃣ Querying standard clinical protocol...");
         await page.focus('textarea');
@@ -60,39 +62,6 @@ const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
         await delay(2500);
         await page.screenshot({ path: '04_Standard_Retrieval.png' });
         console.log("   📸 Saved 04_Standard_Retrieval.png (Shows High Confidence protocol source)");
-
-        console.log("5️⃣ Toggling Enterprise Layout (80/20 -> 70/30)...");
-        // Wait just a moment to ensure UI is interactive after rapid chat sequences
-        await delay(1000);
-
-        try {
-            // Wait for any button within the header string
-            const toggled = await page.evaluate(() => {
-                const header = document.querySelector('header');
-                if (!header) return false;
-
-                const buttons = Array.from(header.querySelectorAll('button'));
-                // The toggle button is the only button in the header
-                if (buttons.length > 0) {
-                    buttons[0].click();
-                    return true;
-                }
-                return false;
-            });
-
-            if (toggled) {
-                console.log("   ✅ Layout Toggle clicked successfully");
-            } else {
-                console.log("   ❌ Could not click the Layout Toggle button in Header!");
-            }
-
-        } catch (err) {
-            console.log("   ❌ Error during layout toggle!", err.message);
-        }
-
-        await delay(1500); // Wait for transition animation to complete
-        await page.screenshot({ path: '05_Layout_Toggle.png' });
-        console.log("   📸 Saved 05_Layout_Toggle.png (Shows Layout Flexibility)");
 
         console.log("\n✅ Demo finished successfully! All screenshots saved to ./demo-automation/");
 

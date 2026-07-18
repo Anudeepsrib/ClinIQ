@@ -1,83 +1,132 @@
 "use client";
 
+import { FormEvent, useState } from "react";
+import { FileText, FolderOpen, Plus, Search, Trash2 } from "lucide-react";
+
 import { useChatStore } from "@/store/chatStore";
-import { FolderOpen, FileText, UserPlus, FileClock, ShieldAlert } from "lucide-react";
+import { DocumentLibrary } from "./DocumentLibrary";
+
+function sessionTime(value: string): string {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? "" : date.toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+}
 
 export function ContextDrawer({ isEnterprise = true }: { isEnterprise?: boolean }) {
-    const activeFocus = useChatStore((state) => state.activeFocus);
+    const {
+        sessions,
+        activeSessionId,
+        chatHistoryEnabled,
+        searchResults,
+        newChat,
+        openSession,
+        deleteSession,
+        searchHistory,
+        clearSearch,
+    } = useChatStore();
+    const [query, setQuery] = useState("");
+
+    const submitSearch = (event: FormEvent) => {
+        event.preventDefault();
+        void searchHistory(query);
+    };
 
     return (
-        <aside className={`min-w-[280px] max-w-[400px] bg-white flex flex-col h-full border-r border-border shrink-0 transition-all duration-300 ${isEnterprise ? 'w-[20%]' : 'w-[30%]'}`}>
-            {/* Drawer Header */}
-            <div className="h-14 border-b border-border flex items-center px-5 shrink-0 bg-black text-white">
-                <FolderOpen className="w-4 h-4 text-gold-500 mr-2" />
-                <h2 className="font-mono text-xs font-bold uppercase tracking-widest text-white">
-                    Patient Context
-                </h2>
+        <aside className={`min-w-[280px] max-w-[400px] bg-white flex flex-col h-full border-r border-border shrink-0 transition-all duration-300 ${isEnterprise ? "w-[20%]" : "w-[30%]"}`}>
+            <div className="h-14 border-b border-border flex items-center justify-between px-4 shrink-0 bg-black text-white">
+                <div className="flex items-center">
+                    <FolderOpen className="w-4 h-4 text-gold-500 mr-2" />
+                    <h2 className="font-mono text-xs font-bold uppercase tracking-widest">Policy Workspace</h2>
+                </div>
+                <button
+                    type="button"
+                    onClick={() => void newChat()}
+                    className="border border-slate-700 p-1.5 text-slate-300 hover:border-gold-500 hover:text-gold-500"
+                    title="New chat"
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                </button>
             </div>
 
-            {/* Active Focus Section */}
-            <div className="p-4 border-b border-border">
-                <h3 className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-3">
-                    Active Focus
-                </h3>
+            <section className="p-4 flex-1 overflow-y-auto">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-[10px] font-mono text-slate-400 uppercase tracking-widest">Recent Threads</h3>
+                    <span className={`h-2 w-2 ${chatHistoryEnabled ? "bg-emerald-500" : "bg-slate-300"}`} title={chatHistoryEnabled ? "History enabled" : "History disabled"} />
+                </div>
 
-                {activeFocus ? (
-                    <div className="bg-gradient-to-br from-gold-500/10 to-transparent border-l-4 border-l-gold-500 border-y border-r border-slate-200 p-4 rounded-none relative overflow-hidden group hover:from-gold-500/20 transition-all shadow-sm">
+                {chatHistoryEnabled ? (
+                    <>
+                        <form onSubmit={submitSearch} className="mb-3 flex border border-slate-200">
+                            <input
+                                value={query}
+                                onChange={(event) => {
+                                    setQuery(event.target.value);
+                                    if (!event.target.value) clearSearch();
+                                }}
+                                className="min-w-0 flex-1 px-2 py-1.5 text-xs outline-none"
+                                placeholder="Search history"
+                                aria-label="Search chat history"
+                            />
+                            <button type="submit" className="px-2 text-slate-400 hover:text-gold-600" title="Search">
+                                <Search className="h-3.5 w-3.5" />
+                            </button>
+                        </form>
 
-                        <div className="flex items-start justify-between">
-                            <div>
-                                <p className="font-display font-bold text-[15px] text-black leading-tight tracking-tight">
-                                    {activeFocus.name}
-                                </p>
-                                <p className="text-[11px] text-slate-500 mt-1.5 font-mono">
-                                    RM: {activeFocus.room} &nbsp;|&nbsp; ID: {activeFocus.id}
-                                </p>
+                        {searchResults.length > 0 && (
+                            <div className="mb-4 border-b border-slate-200 pb-3 space-y-1">
+                                <p className="text-[9px] font-mono uppercase text-slate-400">Matches</p>
+                                {searchResults.map((result) => (
+                                    <button
+                                        type="button"
+                                        key={`${result.session_id}-${result.msg_index}`}
+                                        onClick={() => void openSession(result.session_id)}
+                                        className="block w-full truncate bg-slate-50 p-2 text-left text-[10px] text-slate-600 hover:bg-gold-500/10"
+                                    >
+                                        {result.content}
+                                    </button>
+                                ))}
                             </div>
-                            <span className="bg-crimson-600 text-white shadow-sm text-[10px] font-bold px-2 py-0.5 border border-crimson-700 uppercase tracking-wider">
-                                {activeFocus.status}
-                            </span>
-                        </div>
-                    </div>
+                        )}
+
+                        <ul className="space-y-2">
+                            {sessions.map((session) => (
+                                <li
+                                    key={session.session_id}
+                                    className={`group flex items-start border p-2 transition-colors ${activeSessionId === session.session_id ? "border-gold-500 bg-gold-500/5" : "border-transparent hover:border-slate-200 hover:bg-slate-50"}`}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => void openSession(session.session_id)}
+                                        className="min-w-0 flex-1 text-left"
+                                    >
+                                        <span className="flex items-center text-xs font-medium text-slate-800">
+                                            <FileText className="w-3 h-3 mr-1.5 shrink-0 opacity-70" />
+                                            <span className="truncate">{session.title}</span>
+                                        </span>
+                                        <span className="mt-1 block text-[9px] text-slate-400 font-mono">
+                                            {session.department} · {sessionTime(session.created_at)}
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => void deleteSession(session.session_id)}
+                                        className="p-1 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-red-600"
+                                        title="Delete thread"
+                                    >
+                                        <Trash2 className="h-3 w-3" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                        {!sessions.length && <p className="text-[10px] text-slate-400">Start a chat to create the first thread.</p>}
+                    </>
                 ) : (
-                    <div className="border border-dashed border-slate-300 p-6 text-center bg-slate-50">
-                        <UserPlus className="w-5 h-5 text-slate-400 mx-auto mb-2 opacity-50" />
-                        <p className="text-xs text-slate-500 font-mono">No Patient Selected</p>
-                    </div>
+                    <p className="text-[10px] leading-relaxed text-slate-400">
+                        Persistent threads are off. Set CHAT_HISTORY_ENABLED=true to enable them.
+                    </p>
                 )}
-            </div>
+            </section>
 
-            {/* Recent Threads / Audits */}
-            <div className="p-4 flex-1 overflow-y-auto">
-                <h3 className="text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-between">
-                    <span>Recent Threads</span>
-                    <FileClock className="w-3 h-3" />
-                </h3>
-
-                <ul className="space-y-2">
-                    {[
-                        { id: "1", title: "Heparin IV Dosages", time: "10:42 AM", secure: false },
-                        { id: "2", title: "Shift Handoff Protocol", time: "09:15 AM", secure: false },
-                        { id: "3", title: "Patient Vitals (Masked)", time: "Yesterday", secure: true },
-                    ].map((thread) => (
-                        <li
-                            key={thread.id}
-                            className="group flex flex-col p-2 border border-transparent hover:border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors"
-                        >
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="flex items-center text-xs font-medium text-slate-800 group-hover:text-gold-600 transition-colors">
-                                    <FileText className="w-3 h-3 mr-1.5 opacity-70" />
-                                    {thread.title}
-                                </span>
-                                {thread.secure && <ShieldAlert className="w-3 h-3 text-crimson-500" />}
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono ml-4.5">
-                                {thread.time}
-                            </span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
+            <DocumentLibrary />
         </aside>
     );
 }

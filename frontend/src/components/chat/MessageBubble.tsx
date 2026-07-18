@@ -1,23 +1,12 @@
 "use client";
 
-import { useChatStore } from "@/store/chatStore";
+import { Message, useChatStore } from "@/store/chatStore";
 import { ClarificationButtons } from "./ClarificationButtons";
 import { InlineMask } from "./InlineMask";
-import { FileText, Clock, ShieldCheck, User } from "lucide-react";
-
-interface Message {
-    id: string;
-    role: "user" | "bot";
-    content: string;
-    timestamp: string;
-    source?: string;
-    confidence?: "High" | "Medium" | "Low";
-    options?: string[];
-    masked?: boolean;
-}
+import { FileText, Clock, ShieldCheck, ThumbsDown, ThumbsUp, User } from "lucide-react";
 
 export function MessageBubble({ message }: { message: Message }) {
-    const { addMessage } = useChatStore();
+    const { addMessage, submitFeedback } = useChatStore();
     const isBot = message.role === "bot";
 
     const renderContent = (content: string) => {
@@ -93,6 +82,40 @@ export function MessageBubble({ message }: { message: Message }) {
                                         />
                                         Conf: {message.confidence}
                                     </span>
+                                </>
+                            )}
+
+                            {message.feedbackEnabled && message.runId && (
+                                <>
+                                    <span className="text-slate-300">|</span>
+                                    {message.feedbackStatus === "sent" ? (
+                                        <span className="text-emerald-600">Feedback recorded</span>
+                                    ) : (
+                                        <span className="flex items-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => void submitFeedback(message.id, message.runId!, 1)}
+                                                disabled={message.feedbackStatus === "sending"}
+                                                className="p-1 hover:text-emerald-600 disabled:opacity-50"
+                                                title="Helpful answer"
+                                            >
+                                                <ThumbsUp className="h-3 w-3" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const comment = window.prompt("Optional correction or comment") || undefined;
+                                                    void submitFeedback(message.id, message.runId!, 0, comment);
+                                                }}
+                                                disabled={message.feedbackStatus === "sending"}
+                                                className="p-1 hover:text-red-600 disabled:opacity-50"
+                                                title="Unhelpful answer"
+                                            >
+                                                <ThumbsDown className="h-3 w-3" />
+                                            </button>
+                                            {message.feedbackStatus === "error" && <span className="text-red-500">Retry</span>}
+                                        </span>
+                                    )}
                                 </>
                             )}
                         </div>

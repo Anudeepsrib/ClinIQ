@@ -206,7 +206,7 @@ async function uploadFile(file) {
     formData.append('department', department);
 
     try {
-        const res = await fetch(`${API}/ingest`, {
+        const res = await fetch(`${API}/ingest/jobs`, {
             method: 'POST',
             headers: authHeaders(),
             body: formData,
@@ -215,11 +215,12 @@ async function uploadFile(file) {
             const err = await res.json();
             throw new Error(err.detail || 'Upload failed');
         }
-        const data = await res.json();
+        const queued = await res.json();
         const status = item.querySelector('.file-status');
-        status.textContent = `✓ ${data.chunks_count} chunks`;
+        const data = await pollIngestJob(queued.job_id, status);
+        status.textContent = `✓ ${data.change_type} · ${data.chunk_count} chunks · v${data.version}`;
         status.style.color = 'var(--emerald)';
-        showNotification(`✓ ${file.name} indexed to ${department}`);
+        showNotification(`✓ ${file.name}: ${data.change_type} in ${department}`);
     } catch (err) {
         const status = item.querySelector('.file-status');
         status.textContent = 'Error';
@@ -227,6 +228,19 @@ async function uploadFile(file) {
         showNotification(err.message);
     }
     document.getElementById('imagePreview').classList.add('hidden');
+}
+
+async function pollIngestJob(jobId, status) {
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+        const res = await fetch(`${API}/ingest/jobs/${jobId}`, { headers: authHeaders() });
+        if (!res.ok) throw new Error('Unable to read ingestion status');
+        const job = await res.json();
+        status.textContent = `${job.status} · ${job.modality}`;
+        if (job.status === 'completed') return job.result;
+        if (job.status === 'failed') throw new Error(job.error || 'Ingestion failed');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    throw new Error('Ingestion status timed out');
 }
 
 // =========================================================================

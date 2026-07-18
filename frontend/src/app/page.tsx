@@ -1,12 +1,27 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect } from "react";
+import { LogOut } from "lucide-react";
+
+import { LoginScreen } from "@/components/auth/LoginScreen";
 import { ContextDrawer } from "@/components/layout/ContextDrawer";
 import { ChatStream } from "@/components/chat/ChatStream";
+import { useChatStore } from "@/store/chatStore";
 
 export default function Home() {
-  // Enforce 80/20 Asymmetric Enterprise Layout
+  const { user, authReady, initializeAuth, logout } = useChatStore();
   const isEnterprise = true;
+
+  useEffect(() => {
+    void initializeAuth();
+  }, [initializeAuth]);
+
+  if (!authReady) {
+    return <main className="min-h-screen bg-slate-950 grid place-items-center text-gold-500 font-mono">Loading secure workspace…</main>;
+  }
+
+  if (!user) return <LoginScreen />;
 
   return (
     <div className="flex flex-col h-screen w-full">
@@ -38,9 +53,18 @@ export default function Home() {
           <div className="flex flex-col items-end border-l border-slate-700 pl-6">
             <span className="text-[11px] text-slate-400 uppercase tracking-widest leading-none mb-1">Active Session</span>
             <span className="font-bold text-xs uppercase tracking-wider text-white leading-none">
-              Policy Reviewer
+              {user.full_name || user.username} · {user.role}
             </span>
           </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="border border-slate-700 p-2 text-slate-300 hover:border-gold-500 hover:text-gold-500"
+            title="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </button>
         </div>
       </header>
 

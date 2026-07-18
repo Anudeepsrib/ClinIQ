@@ -68,7 +68,11 @@ See [docs/cliniq-vs-careos.md](docs/cliniq-vs-careos.md) for the fuller position
 - Uses clarification, relevance grading, generation, hallucination checking, and retry nodes to keep answers conservative.
 - Supports hosted Google Gemma 4, Azure/OpenAI, local Ollama, and local vLLM provider modes.
 - Supports multimodal ingestion paths for PDF, DOCX, XLSX, images, DICOM, audio, and video metadata/chunks.
-- Includes a Next.js policy reference interface plus a static fallback UI served by FastAPI.
+- Includes an authenticated Next.js workspace plus a static fallback UI served by FastAPI.
+- Provides a department-scoped document library with uploads, job status, version history, and admin deletion.
+- Supports persistent chat threads, thread search, reopening, and deletion when chat history is enabled.
+- Exposes standard policy search and concise Policy Quick Help modes from the same chat input.
+- Returns trace run IDs for clinician thumbs-up/down feedback when approved external tracing is enabled.
 - Ships Helm templates that can be adapted for Kubernetes or AKS-style evaluation environments.
 
 ## Safety And Scope
@@ -109,12 +113,14 @@ graph TD
     QuickHelp --> Provider["Gemma 4 / Azure OpenAI / Ollama / vLLM"]
 
     API --> Ingest["Upload and ingestion"]
+    Ingest --> Job["Queued status and polling"]
     Ingest --> Parse["PDF, DOCX, XLSX, image, DICOM, audio, video"]
     Parse --> Embed["Gemini multimodal embeddings"]
     Embed --> SearchIndex["Department-scoped search indexes"]
 
     API --> History["Optional Chroma chat history"]
     API --> Trace["Optional LangSmith tracing"]
+    Trace --> Feedback["Clinician feedback"]
 ```
 
 The backend can start without external credentials. Real synthesis requires the selected LLM provider credentials, and real retrieval requires Azure AI Search to be enabled and configured.
@@ -282,6 +288,7 @@ http://localhost:3000
 ```
 
 The frontend defaults to `NEXT_PUBLIC_API_URL=http://localhost:8000`.
+Sign in with a backend account. For local development, the optional demo admin configured in step 2 is sufficient; the frontend validates the saved token through `/api/v1/auth/me` on every reload.
 
 ## Configuration
 
@@ -293,7 +300,7 @@ The backend uses `.env` through Pydantic settings. The most important values are
 | `JWT_SECRET_KEY` | placeholder | Must be replaced. Production rejects weak values. |
 | `ALLOW_DEMO_ADMIN` | `false` | Enables one local admin seed account when no users exist. |
 | `GOOGLE_API_KEY` | blank | Required for hosted Gemma 4 and Gemini embeddings. |
-| `OPENAI_API_KEY` | blank | Required only for `azure_openai` provider or OpenAI embeddings/chat history. |
+| `OPENAI_API_KEY` | blank | Required only for the `azure_openai` provider or OpenAI embeddings. |
 | `LLM_PROVIDER` | `google_gemma` | One of `google_gemma`, `azure_openai`, `ollama`, `vllm`. |
 | `LLM_MODEL` | `gemma-4-26b-a4b-it` | Backward-compatible model override for the configured provider. |
 | `GOOGLE_GEMMA_MODEL` | `gemma-4-26b-a4b-it` | Hosted Gemma fallback when switching providers at request time. |
@@ -302,10 +309,12 @@ The backend uses `.env` through Pydantic settings. The most important values are
 | `EMBEDDING_PROVIDER` | `gemini` | `gemini` or `openai`. |
 | `EMBEDDING_MODEL` | `multimodal-embedding-002` | Embedding model name. |
 | `AZURE_SEARCH_ENABLED` | `false` | Enables real Azure AI Search retrieval. |
-| `CHAT_HISTORY_ENABLED` | `false` | Enables Chroma-backed chat history. |
+| `CHAT_HISTORY_ENABLED` | `false` | Enables local persistent or remote Chroma-backed chat history. |
 | `ENABLE_EXTERNAL_TRACING` | `false` | Enables LangSmith export. Keep off for PHI-sensitive local work. |
 
 Full local defaults live in [.env.example](.env.example).
+
+With `CHAT_HISTORY_ENABLED=true` and `AZURE_CHROMA_HOST=localhost`, conversations persist under `CHROMA_PERSIST_DIRECTORY` using Chroma's local embedding function. Set the Chroma host, port, and token for an approved remote service instead. Browser storage holds only the JWT; the backend remains the source of truth for identity, documents, and conversations.
 
 ## Provider Modes
 
@@ -328,7 +337,7 @@ For real retrieval:
 2. Set `AZURE_SEARCH_ENDPOINT`.
 3. Set `AZURE_SEARCH_API_KEY`.
 4. Confirm `AZURE_SEARCH_INDEX_PREFIX`.
-5. Ingest documents through `/api/v1/ingest`.
+5. Ingest documents through `/api/v1/ingest/jobs` and poll the returned job URL.
 
 When Azure Search is disabled, ingestion and app startup still work, but retrieval returns no indexed search results.
 
@@ -379,11 +388,47 @@ The route keeps the `/copilot/quick-help` path for compatibility, but the implem
 ### Upload A Document
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/ingest \
+curl -X POST http://127.0.0.1:8000/api/v1/ingest/jobs \
   -H "Authorization: Bearer $TOKEN" \
   -F "department=radiology" \
   -F "file=@data/docs/policy_mri_authorization.pdf"
 ```
+
+The response contains a `job_id`. Poll until `status` is `completed` or `failed`:
+
+```bash
+curl http://127.0.0.1:8000/api/v1/ingest/jobs/JOB_ID \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+The original synchronous `/api/v1/ingest` endpoint remains available for compatible clients. Job state is process-local in this reference app; use a durable queue before running multiple API workers or replicas.
+
+### Documents And Chat Threads
+
+```bash
+curl http://127.0.0.1:8000/api/v1/documents/radiology \
+  -H "Authorization: Bearer $TOKEN"
+
+curl -X POST http://127.0.0.1:8000/api/v1/chat/sessions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"department":"radiology"}'
+```
+
+Pass the returned `session_id` on `/query` requests to persist messages. Chat endpoints return `503` while `CHAT_HISTORY_ENABLED=false` so clients do not mistake transient local state for saved history.
+
+### Clinician Feedback
+
+When `ENABLE_EXTERNAL_TRACING=true`, query responses include `run_id` and `feedback_enabled=true`. Submit feedback against that run:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/feedback \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"run_id":"QUERY_RUN_ID","key":"correctness","score":1.0,"comment":"Source matched current policy."}'
+```
+
+Feedback comments are anonymized before export. Keep tracing and feedback disabled unless PHI egress, retention, contracts, and access controls have been approved.
 
 ## Quality Checks
 
@@ -454,6 +499,8 @@ Production deployments should replace `emptyDir` data volumes with durable stora
 | No users can log in locally | Demo admin is disabled | Set `ALLOW_DEMO_ADMIN=true` and a 12+ char `DEMO_ADMIN_PASSWORD`, then start with an empty users DB. |
 | Conservative extractive answer | Selected provider key is missing | Set `GOOGLE_API_KEY`, `OPENAI_API_KEY`, or switch to a running local provider. |
 | No retrieved sources | Azure Search disabled or empty | Enable/configure Azure Search and ingest documents. |
+| Thread history is unavailable | Chat history disabled | Set `CHAT_HISTORY_ENABLED=true`; use remote Chroma for multi-replica deployments. |
+| Feedback controls are hidden | External tracing disabled | This is the safe default; enable tracing only after organizational approval. |
 | CORS errors in browser | Frontend origin not allowed | Add the frontend URL to `CORS_ALLOWED_ORIGINS`. |
 | Production startup rejects config | Weak secret or unsafe CORS/demo admin | Use a strong `JWT_SECRET_KEY`, no wildcard CORS with credentials, and disable demo admin. |
 | Ollama/vLLM calls fail | Local server not running or non-localhost URL | Start the local model server and keep `OLLAMA_BASE_URL`/`VLLM_BASE_URL` on localhost. |

@@ -10,10 +10,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
+from app.chat.chat_history_store import chat_history_store
 from app.chat.copilot_service import copilot_health_service
 from app.core.limiter import limiter
 from app.core.logging import redact_text
 from app.schemas.copilot_models import CopilotHelpRequest, CopilotHelpResponse
+from app.security.pii import pii_manager
 from app.security.rbac import require_role
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,22 @@ async def copilot_quick_help(
             user_role=user["role"],
             user_id=user["username"],
         )
+        if body.session_id and chat_history_store.enabled:
+            department = body.department or "general"
+            chat_history_store.append_message(
+                body.session_id,
+                user["username"],
+                "user",
+                pii_manager.anonymize(body.question),
+                department,
+            )
+            chat_history_store.append_message(
+                body.session_id,
+                user["username"],
+                "bot",
+                response.answer,
+                department,
+            )
         return response
     except Exception as e:
         logger.exception("Policy quick-help error: %s", redact_text(e))

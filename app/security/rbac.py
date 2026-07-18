@@ -6,9 +6,6 @@ Usage in routes:
     async def protected(user = Depends(get_current_user)):
         ...
 
-    @router.post("/dept-resource")
-    async def dept_resource(user = Depends(require_department("radiology"))):
-        ...
 """
 
 from typing import Annotated, List
@@ -61,22 +58,6 @@ def require_role(min_role: str):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Requires role '{min_role}' or higher",
-            )
-        return user
-
-    return _check
-
-
-def require_department(department: str):
-    """Dependency: require the user to have access to a specific department."""
-
-    async def _check(user: Annotated[dict, Depends(get_current_user)]):
-        if user["role"] == "admin":
-            return user  # admin bypasses
-        if department not in user.get("departments", []):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"You do not have access to the '{department}' department",
             )
         return user
 

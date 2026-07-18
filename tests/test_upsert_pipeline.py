@@ -120,3 +120,19 @@ def test_chat_history_rbac_isolation():
         store._collection.get.return_value = {"ids": [], "documents": [], "metadatas": []}
         msgs_B = store.get_session("sess1", "user_B")
         assert len(msgs_B) == 0
+
+
+def test_chat_history_uses_chroma_documents_for_local_embeddings():
+    store = ChatHistoryStore()
+    store._collection = MagicMock()
+    store._collection.get.return_value = {"ids": []}
+
+    store.append_message("session", "user", "user", "heparin policy")
+
+    add_kwargs = store._collection.add.call_args.kwargs
+    assert add_kwargs["documents"] == ["heparin policy"]
+    assert "embeddings" not in add_kwargs
+
+    store._collection.query.return_value = {"ids": [[]], "documents": [[]], "metadatas": [[]]}
+    store.search_history("user", "heparin")
+    assert store._collection.query.call_args.kwargs["query_texts"] == ["heparin"]

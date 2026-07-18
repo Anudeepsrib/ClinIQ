@@ -94,7 +94,9 @@ async def readiness_check():
     checks = {
         "api": "ready",
         "azure_search": "disabled" if not settings.AZURE_SEARCH_ENABLED else "configured",
-        "chat_history": "disabled" if not settings.CHAT_HISTORY_ENABLED else "configured",
+        "chat_history": "ready" if routes.chat_history_store.enabled else "disabled",
+        "feedback": "configured" if settings.ENABLE_EXTERNAL_TRACING else "disabled",
+        "ingestion_jobs": "ready",
     }
     return {"status": "ready", "checks": checks}
 

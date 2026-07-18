@@ -2,6 +2,8 @@
 
 This is the Next.js interface for ClinIQ, a focused hospital policy RAG reference app.
 
+The interface signs in against the FastAPI JWT endpoints and provides policy search, Policy Quick Help, document uploads and version history, optional persistent chat threads, and tracing-backed clinician feedback.
+
 The UI should reinforce the same product boundary as the backend README:
 
 - Ask policy, SOP, coverage, prior authorization, and administrative reference questions.
@@ -25,6 +27,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000`.
+
+Use a backend account. For local development, configure `ALLOW_DEMO_ADMIN=true` and a strong `DEMO_ADMIN_PASSWORD` in the root `.env` before starting the backend.
 
 ## Verification
 

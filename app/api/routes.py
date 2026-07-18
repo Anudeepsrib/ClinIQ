@@ -3,9 +3,21 @@ API routes — Auth, ingestion, and query endpoints with RBAC enforcement.
 """
 
 import logging
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, List
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 
 from app.api.copilot import router as copilot_router
 from app.chat.chat_history_store import chat_history_store
@@ -31,6 +43,7 @@ from app.schemas.models import (
     DocumentInfo,
     FeedbackRequest,
     FeedbackResponse,
+    IngestJobResponse,
     LoginRequest,
     QueryRequest,
     QueryResponse,
@@ -53,6 +66,73 @@ UploadedDocument = Annotated[UploadFile, File()]
 DepartmentForm = Annotated[str, Form()]
 
 router.include_router(copilot_router)
+
+
+@dataclass
+class _IngestJob:
+    owner: str
+    response: IngestJobResponse
+
+
+# ponytail: process-local jobs suit the single-worker reference app; use a durable queue for
+# multi-worker or multi-replica deployments.
+_ingest_jobs: dict[str, _IngestJob] = {}
+
+
+def _validate_department_access(department: str, user: dict) -> str:
+    department = department.lower()
+    if department not in get_user_departments(user):
+        raise HTTPException(
+            status_code=403,
+            detail=f"You do not have access to the '{department}' department",
+        )
+    if department not in settings.departments_list:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid department '{department}'. Valid: {settings.departments_list}",
+        )
+    return department
+
+
+def _infer_modality(filename: str, content_type: str) -> str:
+    suffix = Path(filename).suffix.lower()
+    if suffix == ".dcm":
+        return "dicom"
+    if content_type.startswith("image/"):
+        return "image"
+    if content_type.startswith("audio/"):
+        return "audio"
+    if content_type.startswith("video/"):
+        return "video"
+    if suffix in {".xls", ".xlsx"}:
+        return "table"
+    return "document"
+
+
+async def _run_ingest_job(
+    job_id: str,
+    content: bytes,
+    filename: str,
+    content_type: str,
+    department: str,
+    username: str,
+) -> None:
+    job = _ingest_jobs[job_id]
+    job.response.status = "processing"
+    try:
+        result = await upsert_document(
+            file_bytes=content,
+            filename=filename,
+            content_type=content_type,
+            department=department,
+            user=username,
+        )
+        job.response.result = UpsertResponse.model_validate(result, from_attributes=True)
+        job.response.status = "completed"
+    except Exception as exc:
+        logger.exception("Background ingestion failed for %s: %s", filename, redact_text(exc))
+        job.response.status = "failed"
+        job.response.error = "Document ingestion failed"
 
 
 # =========================================================================
@@ -161,22 +241,7 @@ async def ingest_document(
     Requires the user to have access to the target department.
     Routes through the intelligent upsert pipeline.
     """
-    department = department.lower()
-
-    # Validate department access
-    allowed = get_user_departments(user)
-    if department not in allowed:
-        raise HTTPException(
-            status_code=403,
-            detail=f"You do not have access to the '{department}' department",
-        )
-
-    if department not in settings.departments_list:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid department '{department}'. Valid: {settings.departments_list}",
-        )
-
+    department = _validate_department_access(department, user)
     safe_filename = validate_upload_metadata(file)
 
     try:
@@ -197,6 +262,49 @@ async def ingest_document(
     except Exception as e:
         logger.exception("Error ingesting file %s: %s", safe_filename, redact_text(e))
         raise HTTPException(status_code=500, detail="Failed to ingest document") from e
+
+
+@router.post("/ingest/jobs", response_model=IngestJobResponse, status_code=202)
+@limiter.limit("10/minute")
+async def create_ingest_job(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    file: UploadedDocument,
+    user: CurrentUser,
+    department: DepartmentForm = "general",
+):
+    """Queue document ingestion and return a pollable status record."""
+    department = _validate_department_access(department, user)
+    safe_filename = validate_upload_metadata(file)
+    content = await read_limited_upload(file)
+    content_type = file.content_type or "application/octet-stream"
+    job_id = str(uuid4())
+    response = IngestJobResponse(
+        job_id=job_id,
+        filename=safe_filename,
+        department=department,
+        modality=_infer_modality(safe_filename, content_type),
+    )
+    _ingest_jobs[job_id] = _IngestJob(owner=user["username"], response=response)
+    background_tasks.add_task(
+        _run_ingest_job,
+        job_id,
+        content,
+        safe_filename,
+        content_type,
+        department,
+        user["username"],
+    )
+    return response
+
+
+@router.get("/ingest/jobs/{job_id}", response_model=IngestJobResponse)
+async def get_ingest_job(job_id: str, user: CurrentUser):
+    """Return ingestion status to its owner or an administrator."""
+    job = _ingest_jobs.get(job_id)
+    if not job or (job.owner != user["username"] and user["role"] != "admin"):
+        raise HTTPException(status_code=404, detail="Ingestion job not found")
+    return job.response
 
 
 @router.get("/documents/{department}", response_model=List[DocumentInfo])
@@ -274,6 +382,9 @@ async def query_documents(
             role=user["role"],
             departments=search_depts,
         )
+        trace_run_id = uuid4() if settings.ENABLE_EXTERNAL_TRACING else None
+        if trace_run_id:
+            langsmith_config["run_id"] = trace_run_id
 
         # Build graph input with RBAC context
         inputs = {
@@ -311,6 +422,8 @@ async def query_documents(
                 departments_searched=search_depts,
                 response_type="clarification",
                 options=clarification_options,
+                run_id=str(trace_run_id) if trace_run_id else None,
+                feedback_enabled=bool(trace_run_id),
             )
 
         # Confidence = average similarity score of top-3 retrieved sources
@@ -349,6 +462,8 @@ async def query_documents(
             departments_searched=search_depts,
             hallucination_score=hallucination_score,
             confidence_score=confidence_score,
+            run_id=str(trace_run_id) if trace_run_id else None,
+            feedback_enabled=bool(trace_run_id),
         )
     except HTTPException:
         raise
@@ -376,10 +491,10 @@ async def submit_feedback(
     team can measure and improve accuracy over time.
     """
     success = ls_create_feedback(
-        run_id=body.run_id,
+        run_id=str(body.run_id),
         key=body.key,
         score=body.score,
-        comment=body.comment,
+        comment=pii_manager.anonymize(body.comment) if body.comment else None,
     )
     if not success:
         raise HTTPException(
@@ -388,7 +503,7 @@ async def submit_feedback(
         )
     return FeedbackResponse(
         status="recorded",
-        run_id=body.run_id,
+        run_id=str(body.run_id),
         key=body.key,
     )
 
@@ -396,9 +511,15 @@ async def submit_feedback(
 # Chat History
 # =========================================================================
 
+def _require_chat_history() -> None:
+    if not chat_history_store.enabled:
+        raise HTTPException(status_code=503, detail="Chat history is disabled")
+
+
 @router.post("/chat/sessions", response_model=CreateSessionResponse)
 async def create_chat_session(req: CreateSessionRequest, user: CurrentUser):
     """Create a new chat session."""
+    _require_chat_history()
     department = (req.department or "general").lower()
     allowed = get_user_departments(user)
     if department not in allowed:
@@ -410,12 +531,14 @@ async def create_chat_session(req: CreateSessionRequest, user: CurrentUser):
 @router.get("/chat/sessions", response_model=List[SessionSummaryOut])
 async def list_chat_sessions(user: CurrentUser):
     """List only the current user's sessions."""
+    _require_chat_history()
     return [s.to_dict() for s in chat_history_store.list_sessions(user["username"])]
 
 
 @router.get("/chat/sessions/{session_id}", response_model=List[ChatMessageOut])
 async def get_chat_session(session_id: str, user: CurrentUser):
     """Get conversation only if owned by current user."""
+    _require_chat_history()
     if user["role"] == "admin":
         messages = chat_history_store.admin_get_session(session_id)
     else:
@@ -426,6 +549,7 @@ async def get_chat_session(session_id: str, user: CurrentUser):
 @router.delete("/chat/sessions/{session_id}")
 async def delete_chat_session(session_id: str, user: CurrentUser):
     """Delete session if owned by user or if admin (RBAC)."""
+    _require_chat_history()
     if user["role"] == "admin":
         success = chat_history_store.admin_delete_session(session_id)
     else:
@@ -438,5 +562,6 @@ async def delete_chat_session(session_id: str, user: CurrentUser):
 @router.post("/chat/search", response_model=List[ChatMessageOut])
 async def search_chat_history(req: ChatSearchRequest, user: CurrentUser):
     """Semantic search scoped to current user's history only."""
+    _require_chat_history()
     results = chat_history_store.search_history(user["username"], req.query, req.k)
     return [r.to_dict() for r in results]
