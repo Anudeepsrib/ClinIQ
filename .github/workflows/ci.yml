@@ -23,10 +23,10 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Syntax compile
-        run: python -m compileall app main.py tests scripts
+        run: python -m compileall app main.py tests scripts tools/demo/mock
 
       - name: Ruff lint
-        run: ruff check app tests main.py
+        run: ruff check app tests main.py scripts tools/demo/mock
 
       - name: Tests
         run: pytest

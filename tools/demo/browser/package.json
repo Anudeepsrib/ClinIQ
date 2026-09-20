@@ -1,0 +1,13 @@
+{
+  "name": "cliniq-demo-browser",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-driven screenshot automation for ClinIQ",
+  "scripts": {
+    "demo": "node run_demo.js"
+  },
+  "type": "commonjs",
+  "dependencies": {
+    "puppeteer": "^24.38.0"
+  }
+}

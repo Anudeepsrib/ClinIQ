@@ -331,6 +331,8 @@ The UI model switcher sends the selected provider with both standard RAG queries
 
 Sample runtime documents are expected under `data/docs`, but runtime data is ignored by Git. The committed synthetic evaluation corpus lives under `tests/evaluation/policy_corpus`.
 
+Example PDF, DOCX, and XLSX documents are committed under [examples/documents](examples/documents). Use `python scripts/generate_dummy_data.py` to create a fresh local set under the ignored `data/docs` runtime directory.
+
 For real retrieval:
 
 1. Set `AZURE_SEARCH_ENABLED=true`.
@@ -391,7 +393,7 @@ The route keeps the `/copilot/quick-help` path for compatibility, but the implem
 curl -X POST http://127.0.0.1:8000/api/v1/ingest/jobs \
   -H "Authorization: Bearer $TOKEN" \
   -F "department=radiology" \
-  -F "file=@data/docs/policy_mri_authorization.pdf"
+  -F "file=@examples/documents/policy_mri_authorization.pdf"
 ```
 
 The response contains a `job_id`. Poll until `status` is `completed` or `failed`:
@@ -435,8 +437,8 @@ Feedback comments are anonymized before export. Keep tracing and feedback disabl
 Backend:
 
 ```bash
-python -m ruff check app tests main.py scripts
-python -m compileall app main.py tests scripts
+python -m ruff check app tests main.py scripts tools/demo/mock
+python -m compileall app main.py tests scripts tools/demo/mock
 python -m pytest
 pip check
 ```
@@ -483,10 +485,10 @@ kubectl -n cliniq create secret generic cliniq-runtime \
 Install:
 
 ```bash
-helm install cliniq ./aks/helm/cliniq \
+helm install cliniq ./deploy/helm/cliniq \
   --namespace cliniq \
   --set secrets.existingSecret=cliniq-runtime \
-  -f ./aks/helm/cliniq/values.yaml
+  -f ./deploy/helm/cliniq/values.yaml
 ```
 
 Production deployments should replace `emptyDir` data volumes with durable storage where needed and provide secrets through a managed secret system such as Azure Key Vault CSI Driver, External Secrets Operator, sealed-secrets, or equivalent.
@@ -519,14 +521,15 @@ ClinIQ/
 │   ├── retrieval/      # Azure Search store and LangGraph nodes
 │   ├── schemas/        # Pydantic request/response models
 │   └── security/       # Auth, RBAC, PHI masking, upload validation
-├── aks/helm/cliniq/    # Kubernetes chart
+├── deploy/helm/cliniq/ # Kubernetes chart
 ├── data/               # Local runtime data, ignored by Git
-├── demo-automation/    # Demo screenshot automation
-├── docs/               # Architecture, positioning, security, screenshots, demo notes
+├── docs/               # Architecture, design, security, and project notes
+├── examples/documents/ # Committed sample documents
 ├── frontend/           # Next.js policy reference interface
 ├── scripts/            # Utility/data generation scripts
 ├── static/             # Static fallback UI served by FastAPI
 ├── tests/              # Unit, integration, and evaluation artifact tests
+├── tools/demo/         # Browser and mock-backed screenshot automation
 ├── main.py             # FastAPI application entrypoint
 └── requirements.txt    # Backend runtime dependencies
 ```

@@ -70,8 +70,8 @@ frontend/.env*.local
 next-env.d.ts
 
 # --- Demo Automation ---
-demo-automation/*.png
-demo-automation/node_modules/
+tools/demo/browser/*.png
+tools/demo/browser/node_modules/
 build_output.txt
 frontend/build_output.txt
 tmp/

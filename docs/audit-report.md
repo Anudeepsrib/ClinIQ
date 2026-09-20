@@ -46,7 +46,7 @@ This pass focused on P0/P1 risks that could leak secrets/PHI, prevent local star
 - Security/config/backend: `main.py`, `app/core/config.py`, `app/core/logging.py`, `app/api/routes.py`, `app/api/copilot.py`, `app/security/auth.py`, `app/security/rbac.py`, `app/security/pii.py`, `app/security/uploads.py`, `app/security/vault.py`.
 - RAG/retrieval/ingestion: `app/retrieval/azure_search_store.py`, `app/retrieval/nodes/*.py`, `app/ingestion/upsert_pipeline.py`, `app/ingestion/document_registry.py`.
 - Frontend/static UI: `frontend/package.json`, `frontend/package-lock.json`, `frontend/next.config.ts`, `frontend/src/store/chatStore.ts`, `frontend/src/components/input/*.tsx`, `frontend/.env.example`, `static/index.html`, `static/js/script.js`.
-- Deployment/CI/docs: `Dockerfile`, `.dockerignore`, `aks/helm/cliniq/**`, `.github/workflows/ci.yml`, `.pre-commit-config.yaml`, `README.md`, `SECURITY.md`, `docs/security-hardening.md`, `AUDIT_REPORT.md`.
+- Deployment/CI/docs: `Dockerfile`, `.dockerignore`, `deploy/helm/cliniq/**`, `.github/workflows/ci.yml`, `.pre-commit-config.yaml`, `README.md`, `SECURITY.md`, `docs/security-hardening.md`, `docs/audit-report.md`.
 - Dependencies/tests: `requirements.txt`, `requirements-dev.txt`, `pyproject.toml`, `tests/test_security_controls.py`, `tests/test_rag_safety.py`, `tests/evaluation/*.py`.
 - Removed from working tree/Git tracking intent: `.env`, `__pycache__/`, tracked `*.pyc`, `data/users.db`, `data/document_registry.db`, `data/vector_db/chroma.sqlite3`, `tmp/verify_gemma.py`.
 

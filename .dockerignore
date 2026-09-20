@@ -27,7 +27,7 @@ coverage.xml
 frontend/node_modules
 frontend/.next
 frontend/out
-demo-automation/node_modules
+tools/demo/browser/node_modules
 data/*.db
 data/**/*.db
 data/**/*.sqlite3

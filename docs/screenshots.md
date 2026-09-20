@@ -28,6 +28,8 @@ Use this to show the happy path: a specific policy question returns cited source
 
 ## Refresh Guidance
 
+Use the browser or deterministic mock workflow documented in [`tools/demo`](../tools/demo/README.md).
+
 When screenshots are refreshed, capture these states:
 
 - Nurse query against nursing policy.
