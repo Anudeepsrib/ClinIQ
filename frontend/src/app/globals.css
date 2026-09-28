@@ -33,9 +33,9 @@
   --radius-3xl: 2px;
   --radius-full: 9999px;
 
-  --font-sans: var(--font-source-sans), sans-serif;
-  --font-mono: var(--font-roboto-mono), monospace;
-  --font-display: var(--font-lexend), sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+  --font-display: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 @layer base {

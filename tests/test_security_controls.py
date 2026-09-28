@@ -10,6 +10,13 @@ from main import app
 client = TestClient(app)
 
 
+def test_api_root_describes_service_without_serving_legacy_ui():
+    response = client.get("/")
+    assert response.status_code == 200
+    assert response.json()["api"] == "/api/v1"
+    assert "/static/" not in response.text
+
+
 def test_production_rejects_weak_jwt_secret():
     with pytest.raises(ValueError):
         Settings(

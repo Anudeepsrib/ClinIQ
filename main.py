@@ -2,8 +2,7 @@ import logging
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -37,8 +36,6 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 app.include_router(routes.router, prefix="/api/v1")
 
 
@@ -52,8 +49,8 @@ async def security_headers_middleware(request: Request, call_next):
         response.headers.setdefault(
             "Content-Security-Policy",
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
             "img-src 'self' data:; "
             "font-src 'self' data:; "
             "connect-src 'self' http://localhost:3000 http://127.0.0.1:3000 "
@@ -75,7 +72,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 @app.get("/")
 async def read_index():
-    return FileResponse("static/index.html")
+    return {
+        "name": settings.PROJECT_NAME,
+        "status": "ok",
+        "api": settings.API_V1_STR,
+        "docs": None if settings.is_production else "/docs",
+    }
 
 
 @app.get("/health")

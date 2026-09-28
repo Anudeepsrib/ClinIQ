@@ -80,7 +80,10 @@ export default function Home() {
       </main>
 
       <footer className="h-8 border-t border-border flex items-center justify-center bg-slate-50 text-[10px] text-slate-400 font-mono uppercase tracking-widest shrink-0">
-        AI-assisted policy retrieval. Verify against current institutional policy.
+        <span>AI-assisted policy retrieval. Verify against current institutional policy. · </span>
+        <a className="ml-1 underline" href="/privacy">Privacy</a>
+        <span className="mx-1">·</span><a className="underline" href="/terms">Terms</a>
+        <span className="mx-1">·</span><a className="underline" href="/copyright">Copyright</a>
       </footer>
     </div>
   );

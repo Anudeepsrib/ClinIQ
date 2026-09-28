@@ -68,7 +68,7 @@ See [docs/cliniq-vs-careos.md](docs/cliniq-vs-careos.md) for the fuller position
 - Uses clarification, relevance grading, generation, hallucination checking, and retry nodes to keep answers conservative.
 - Supports hosted Google Gemma 4, Azure/OpenAI, local Ollama, and local vLLM provider modes.
 - Supports multimodal ingestion paths for PDF, DOCX, XLSX, images, DICOM, audio, and video metadata/chunks.
-- Includes an authenticated Next.js workspace plus a static fallback UI served by FastAPI.
+- Includes an authenticated Next.js workspace backed by a standalone FastAPI API.
 - Provides a department-scoped document library with uploads, job status, version history, and admin deletion.
 - Supports persistent chat threads, thread search, reopening, and deletion when chat history is enabled.
 - Exposes standard policy search and concise Policy Quick Help modes from the same chat input.
@@ -96,7 +96,7 @@ See [docs/security-hardening.md](docs/security-hardening.md) for more detail.
 
 ```mermaid
 graph TD
-    User["Hospital staff"] --> Frontend["Next.js UI or static UI"]
+    User["Hospital staff"] --> Frontend["Next.js UI"]
     Frontend --> API["FastAPI /api/v1"]
     API --> Auth["JWT auth and RBAC"]
     Auth --> Dept["Department scope"]
@@ -527,7 +527,6 @@ ClinIQ/
 ├── examples/documents/ # Committed sample documents
 ├── frontend/           # Next.js policy reference interface
 ├── scripts/            # Utility/data generation scripts
-├── static/             # Static fallback UI served by FastAPI
 ├── tests/              # Unit, integration, and evaluation artifact tests
 ├── tools/demo/         # Browser and mock-backed screenshot automation
 ├── main.py             # FastAPI application entrypoint

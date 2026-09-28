@@ -78,6 +78,11 @@ export function LoginScreen() {
                         <LogIn className="h-4 w-4" />
                         {loading ? "Signing in…" : "Sign in"}
                     </button>
+                    <p className="text-center text-xs text-slate-400">
+                        <a className="underline" href="/privacy">Privacy</a>
+                        <span className="mx-2">·</span><a className="underline" href="/terms">Terms</a>
+                        <span className="mx-2">·</span><a className="underline" href="/copyright">Copyright</a>
+                    </p>
                 </form>
             </section>
         </main>

@@ -73,7 +73,7 @@ interface ChatState {
 export const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 function token(): string | null {
-    return typeof window === "undefined" ? null : window.localStorage.getItem("cliniq_token");
+    return typeof window === "undefined" ? null : window.sessionStorage.getItem("cliniq_token");
 }
 
 export function getAuthHeaders(): HeadersInit {
@@ -157,7 +157,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             set({ user: await res.json(), authReady: true, chatHistoryEnabled: historyEnabled });
             if (historyEnabled) await get().loadSessions();
         } catch {
-            window.localStorage.removeItem("cliniq_token");
+            window.sessionStorage.removeItem("cliniq_token");
             set({ user: null, authReady: true, chatHistoryEnabled: false });
         }
     },
@@ -170,14 +170,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
         });
         if (!res.ok) throw new Error(await parseError(res));
         const data = await res.json();
-        window.localStorage.setItem("cliniq_token", data.access_token);
+        window.sessionStorage.setItem("cliniq_token", data.access_token);
         const historyEnabled = await chatHistoryAvailable();
         set({ user: data.user, chatHistoryEnabled: historyEnabled, authReady: true });
         if (historyEnabled) await get().loadSessions();
     },
 
     logout: () => {
-        window.localStorage.removeItem("cliniq_token");
+        window.sessionStorage.removeItem("cliniq_token");
         set({
             user: null,
             messages: [],
