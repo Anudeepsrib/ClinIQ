@@ -2,17 +2,17 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Cloud, Cpu, HardDrive, Sparkles } from "lucide-react";
+import { Gauge, Rabbit, Sparkles, Zap } from "lucide-react";
 import { useChatStore } from "@/store/chatStore";
 
 export const ModelSwitcher: React.FC = () => {
-  const { llmProvider, setLlmProvider } = useChatStore();
+  const { llmProvider, lastModelRoute, setLlmProvider } = useChatStore();
 
   const providers = [
-    { id: "google_gemma", label: "Gemma", icon: Sparkles, desc: "Gemma 4 26B A4B (Google)" },
-    { id: "azure_openai", label: "OpenAI", icon: Cloud, desc: "GPT-4o (Azure/OpenAI)" },
-    { id: "ollama", label: "Local", icon: HardDrive, desc: "Gemma 4 (Ollama)" },
-    { id: "vllm", label: "vLLM", icon: Cpu, desc: "Gemma 4 (vLLM)" },
+    { id: "auto", label: "Auto", icon: Sparkles, desc: "Automatic · safest capable profile" },
+    { id: "fast", label: "Fast", icon: Rabbit, desc: "Fast · direct policy lookup" },
+    { id: "standard", label: "Standard", icon: Gauge, desc: "Standard · normal policy synthesis" },
+    { id: "powerful", label: "Powerful", icon: Zap, desc: "Powerful · complex policy reasoning" },
   ] as const;
 
   return (
@@ -46,9 +46,11 @@ export const ModelSwitcher: React.FC = () => {
         </div>
       </div>
       <div className="flex items-center gap-2 px-1">
-        <div className={`h-1 w-1 rounded-full animate-pulse ${llmProvider === "azure_openai" ? "bg-blue-400" : "bg-gold-500"}`} />
+        <div className="h-1 w-1 rounded-full animate-pulse bg-gold-500" />
         <span className="text-[9px] text-slate-500 font-mono">
-          SYSTEM: {providers.find(p => p.id === llmProvider)?.desc}
+          SYSTEM: {llmProvider === "auto" && lastModelRoute
+            ? `Auto · ${lastModelRoute[0].toUpperCase()}${lastModelRoute.slice(1)}`
+            : providers.find(p => p.id === llmProvider)?.desc}
         </span>
       </div>
     </div>

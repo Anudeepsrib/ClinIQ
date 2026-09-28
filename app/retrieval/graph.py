@@ -28,6 +28,7 @@ from app.retrieval.nodes.clarification import clarification_check
 from app.retrieval.nodes.generation import generate
 from app.retrieval.nodes.grading import grade_documents
 from app.retrieval.nodes.hallucination import hallucination_check
+from app.retrieval.nodes.model_routing import route_model
 from app.retrieval.nodes.retrieval import retrieve
 from app.retrieval.nodes.transform_query import transform_query
 from app.retrieval.state import GraphState
@@ -113,6 +114,7 @@ def check_hallucination(state: GraphState) -> str:
 workflow = StateGraph(GraphState)
 
 # --- Nodes ----------------------------------------------------------------
+workflow.add_node("route_model",          route_model)
 workflow.add_node("clarification_check", clarification_check)
 workflow.add_node("retrieve",            retrieve)
 workflow.add_node("grade_documents",     grade_documents)
@@ -122,8 +124,9 @@ workflow.add_node("hallucination_check", hallucination_check)
 
 # --- Edges ----------------------------------------------------------------
 
-# Entry point: always run clarification check first
-workflow.set_entry_point("clarification_check")
+# Entry point: routing sees only the sanitized state created by the API.
+workflow.set_entry_point("route_model")
+workflow.add_edge("route_model", "clarification_check")
 
 # clarification_check → retrieve | END
 workflow.add_conditional_edges(
@@ -168,4 +171,4 @@ workflow.add_conditional_edges(
 # --- Compile --------------------------------------------------------------
 app_graph = workflow.compile()
 
-logger.info("ClinIQ LangGraph compiled with 6 nodes and conditional routing (incl. clarification)")
+logger.info("ClinIQ LangGraph compiled with model routing and conservative RAG checks")

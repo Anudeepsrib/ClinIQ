@@ -55,3 +55,13 @@ def test_retrieval_dataset_covers_required_demo_personas():
     rows = _load_jsonl(EVAL_DIR / "retrieval_eval_dataset.jsonl")
     personas = {row["persona"] for row in rows}
     assert {"nurse", "admin", "compliance_reviewer"}.issubset(personas)
+
+
+def test_model_routing_dataset_has_balanced_core_routes_and_safety_cases():
+    rows = _load_jsonl(EVAL_DIR / "model_routing_dataset.jsonl")
+    for route in ("fast", "standard", "powerful"):
+        assert sum(row["expected_route"] == route for row in rows) >= 10
+    assert any(row.get("ambiguous") for row in rows)
+    assert any(row.get("contains_synthetic_phi") for row in rows)
+    assert any(row["id"].startswith("injection_") for row in rows)
+    assert any(len(row["departments"]) > 1 for row in rows)

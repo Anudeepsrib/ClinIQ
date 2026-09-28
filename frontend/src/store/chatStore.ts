@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type LlmProvider = "google_gemma" | "azure_openai" | "ollama" | "vllm";
+export type ModelMode = "auto" | "fast" | "standard" | "powerful";
 export type ChatMode = "rag" | "quick_help";
 
 export interface AuthUser {
@@ -48,7 +49,8 @@ interface ChatState {
     authReady: boolean;
     messages: Message[];
     isLoading: boolean;
-    llmProvider: LlmProvider;
+    llmProvider: LlmProvider | ModelMode;
+    lastModelRoute: ModelMode | null;
     chatMode: ChatMode;
     chatHistoryEnabled: boolean;
     sessions: SessionSummary[];
@@ -59,7 +61,7 @@ interface ChatState {
     logout: () => void;
     addMessage: (content: string, role?: "user" | "bot") => void;
     copilotQuickHelp: (question: string, context?: string, department?: string) => void;
-    setLlmProvider: (provider: LlmProvider) => void;
+    setLlmProvider: (provider: LlmProvider | ModelMode) => void;
     setChatMode: (mode: ChatMode) => void;
     newChat: (department?: string) => Promise<void>;
     loadSessions: () => Promise<void>;
@@ -138,7 +140,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
     authReady: false,
     messages: [],
     isLoading: false,
-    llmProvider: "google_gemma",
+    llmProvider: "auto",
+    lastModelRoute: null,
     chatMode: "rag",
     chatHistoryEnabled: false,
     sessions: [],
@@ -216,7 +219,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     headers: getJsonHeaders(),
                     body: JSON.stringify({
                         question: content,
-                        provider: get().llmProvider,
+                        ...( ["google_gemma", "azure_openai", "ollama", "vllm"].includes(get().llmProvider)
+                            ? { provider: get().llmProvider }
+                            : { model_mode: get().llmProvider }),
                         session_id: sessionId,
                     }),
                 });
@@ -234,7 +239,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
                     runId: data.run_id || undefined,
                     feedbackEnabled: data.feedback_enabled || false,
                 };
-                set((state) => ({ messages: [...state.messages, botResponse], isLoading: false }));
+                set((state) => ({
+                    messages: [...state.messages, botResponse],
+                    isLoading: false,
+                    lastModelRoute: data.model_route || null,
+                }));
                 if (get().chatHistoryEnabled) await get().loadSessions();
             } catch (error) {
                 const detail = error instanceof Error ? error.message : "Unknown API error";
@@ -276,7 +285,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
                         question,
                         context,
                         department,
-                        provider: get().llmProvider,
+                        ...( ["google_gemma", "azure_openai", "ollama", "vllm"].includes(get().llmProvider)
+                            ? { provider: get().llmProvider }
+                            : {}),
                         session_id: sessionId,
                     }),
                 });

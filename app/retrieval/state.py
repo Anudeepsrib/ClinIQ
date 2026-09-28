@@ -39,6 +39,14 @@ class GraphState(TypedDict):
     query_transformations: List[str]
     metadata: Dict[str, Any]
     llm_provider: str
+    model_mode: str
+    model_route: str
+    routing_confidence: float
+    routing_signals: Dict[str, Any]
+    routing_fallback: bool
+    generation_provider: str
+    generation_model: str
+    provider_override: bool
     clarification_needed: bool
     clarification_options: List[str]
     query_modality: str  # "text" | "image" | "audio" | "video"

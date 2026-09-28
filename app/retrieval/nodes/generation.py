@@ -139,7 +139,11 @@ def generate(state: GraphState) -> Dict[str, Any]:
         }
 
     prompt = ChatPromptTemplate.from_template(RAG_TEMPLATE)
-    llm = get_chat_model(provider=llm_provider, temperature=0)
+    llm = get_chat_model(
+        provider=state.get("generation_provider") or llm_provider,
+        model=state.get("generation_model"),
+        temperature=0,
+    )
 
     rag_chain = prompt | llm | StrOutputParser()
 
@@ -152,4 +156,8 @@ def generate(state: GraphState) -> Dict[str, Any]:
     )
 
     logger.info("  Generation complete (%d chars)", len(generation))
-    return {"generation": generation}
+    return {
+        "generation": generation,
+        "generation_provider": state.get("generation_provider") or llm_provider,
+        "generation_model": state.get("generation_model", ""),
+    }

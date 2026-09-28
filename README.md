@@ -22,6 +22,7 @@ ClinIQ is not certified clinical, compliance, or HIPAA software. The controls in
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [Provider Modes](#provider-modes)
+- [Automatic Model Routing with Jev](#automatic-model-routing-with-jev)
 - [Working With Data](#working-with-data)
 - [API Examples](#api-examples)
 - [Quality Checks](#quality-checks)
@@ -100,8 +101,10 @@ graph TD
     Frontend --> API["FastAPI /api/v1"]
     API --> Auth["JWT auth and RBAC"]
     Auth --> Dept["Department scope"]
+    Dept --> Mask["Deterministic PHI masking"]
+    Mask --> Router["Jev model router"]
 
-    API --> Graph["LangGraph policy RAG pipeline"]
+    Router --> Graph["LangGraph policy RAG pipeline"]
     Graph --> Clarify["Clarification check"]
     Clarify --> Retrieve["Azure AI Search retrieval"]
     Retrieve --> Grade["Document relevance grading"]
@@ -325,7 +328,40 @@ With `CHAT_HISTORY_ENABLED=true` and `AZURE_CHROMA_HOST=localhost`, conversation
 | Ollama | `ollama` | Local Ollama on `OLLAMA_BASE_URL` | Traffic is restricted to localhost by default. |
 | vLLM | `vllm` | Local vLLM OpenAI-compatible server on `VLLM_BASE_URL` | Traffic is restricted to localhost by default. |
 
-The UI model switcher sends the selected provider with both standard RAG queries and policy quick-help requests.
+Low-level providers remain available through the API for development and compatibility.
+
+## Automatic Model Routing with Jev
+
+ClinIQ uses Jev as a classification control plane; it does not replace retrieval,
+generation, RBAC, or groundedness checks. The request path is deliberately ordered as:
+
+```text
+authentication → department RBAC → deterministic PHI masking → Jev router → LangGraph RAG
+```
+
+`MODEL_ROUTING_MODE` supports `disabled`, `shadow`, and `active`. New installations
+default to `shadow`: Jev records a `fast`, `standard`, or `powerful` recommendation,
+but the configured legacy provider remains authoritative. In `active` mode the selected
+profile controls answer generation. An explicit `provider` request remains the highest
+precedence developer override, followed by an explicit `model_mode` profile, then
+`auto`/Jev, then the `standard` fallback.
+
+The router sends exactly four allowlisted fields: sanitized `question`, `role`,
+`departments`, and `query_modality`. It never receives retrieved documents, uploads,
+chat history, generated answers, credentials, or arbitrary graph state. One classifier
+request returns route, complexity, high-stakes, and ambiguity signals. Low-confidence,
+invalid, timed-out, or failed classifications continue through the RAG pipeline with
+the `standard` profile; high-stakes and cross-policy comparisons are deterministically
+escalated to `powerful`.
+
+Blank profile provider/model values inherit the existing provider settings, preserving
+local Ollama/vLLM development. `TYPESAFE_API_KEY` is optional for startup; without it,
+routing records a standard fallback rather than failing a query.
+
+The offline fixture at `tests/evaluation/model_routing_dataset.jsonl` covers direct,
+moderate, complex, ambiguous, cross-department, compliance, injection-like, and
+synthetic-PHI cases. Unit tests mock TypeSafe. Measure real accuracy against this fixture
+in an approved non-PHI environment before switching a deployment from shadow to active.
 
 ## Working With Data
 

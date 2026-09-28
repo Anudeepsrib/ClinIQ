@@ -393,6 +393,9 @@ async def query_documents(
             "departments": search_depts,
             "user_id": user["username"],
             "llm_provider": request_body.provider or settings.LLM_PROVIDER,
+            "provider_override": request_body.provider is not None,
+            "model_mode": request_body.model_mode,
+            "query_modality": "text",
             "retry_count": 0,
             "hallucination_score": "",
             "query_transformations": [],
@@ -424,6 +427,10 @@ async def query_documents(
                 options=clarification_options,
                 run_id=str(trace_run_id) if trace_run_id else None,
                 feedback_enabled=bool(trace_run_id),
+                model_route=result.get("model_route"),
+                generation_model=result.get("generation_model"),
+                generation_provider=result.get("generation_provider"),
+                routing_fallback=result.get("routing_fallback", False),
             )
 
         # Confidence = average similarity score of top-3 retrieved sources
@@ -464,6 +471,10 @@ async def query_documents(
             confidence_score=confidence_score,
             run_id=str(trace_run_id) if trace_run_id else None,
             feedback_enabled=bool(trace_run_id),
+            model_route=result.get("model_route"),
+            generation_model=result.get("generation_model"),
+            generation_provider=result.get("generation_provider"),
+            routing_fallback=result.get("routing_fallback", False),
         )
     except HTTPException:
         raise

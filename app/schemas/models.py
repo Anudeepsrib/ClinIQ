@@ -108,6 +108,7 @@ class QueryRequest(BaseModel):
     departments: Optional[List[str]] = None  # filter to specific departments
     session_id: Optional[str] = None         # enable chat history appending
     provider: Optional[Literal["google_gemma", "azure_openai", "ollama", "vllm"]] = None
+    model_mode: Literal["auto", "fast", "standard", "powerful"] = "auto"
 
 
 class QueryResponse(BaseModel):
@@ -120,6 +121,10 @@ class QueryResponse(BaseModel):
     options: List[str] = []            # clarification options (when response_type == "clarification")
     run_id: Optional[str] = None
     feedback_enabled: bool = False
+    model_route: Optional[str] = None
+    generation_model: Optional[str] = None
+    generation_provider: Optional[str] = None
+    routing_fallback: bool = False
 
 
 # ---------------------------------------------------------------------------

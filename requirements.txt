@@ -11,6 +11,7 @@ langchain-openai>=1.1.14
 langchain-community>=0.3.0
 langgraph>=0.2.0
 langsmith>=0.2.0
+langchain-typesafe>=0.0.1a3
 openai>=2.0.0
 
 # --- Vector store ---

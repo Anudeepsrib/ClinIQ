@@ -91,6 +91,7 @@ def _openai_compatible_base_url(base_url: str) -> str:
 def get_chat_model(
     *,
     provider: Optional[str] = None,
+    model: Optional[str] = None,
     temperature: float = 0.0,
     max_tokens: Optional[int] = None,
 ) -> BaseChatModel:
@@ -101,7 +102,7 @@ def get_chat_model(
         from langchain_google_genai import ChatGoogleGenerativeAI
 
         kwargs: dict[str, Any] = {
-            "model": model_for_provider(active_provider),
+            "model": model or model_for_provider(active_provider),
             "temperature": temperature,
             "api_key": settings.GOOGLE_API_KEY,
         }
@@ -115,7 +116,7 @@ def get_chat_model(
         from langchain_openai import ChatOpenAI
 
         kwargs = {
-            "model": model_for_provider(active_provider),
+            "model": model or model_for_provider(active_provider),
             "temperature": temperature,
             "api_key": settings.OPENAI_API_KEY,
         }
@@ -131,7 +132,7 @@ def get_chat_model(
         else _openai_compatible_base_url(settings.VLLM_BASE_URL)
     )
     kwargs = {
-        "model": model_for_provider(active_provider),
+        "model": model or model_for_provider(active_provider),
         "temperature": temperature,
         "base_url": base_url,
         "api_key": "local",
@@ -139,6 +140,16 @@ def get_chat_model(
     if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
     return ChatOpenAI(**kwargs)
+
+
+def get_chat_model_for_profile(profile: Any) -> BaseChatModel:
+    """Build a chat model from a resolved routing profile."""
+    return get_chat_model(
+        provider=profile.provider,
+        model=profile.model,
+        temperature=profile.temperature,
+        max_tokens=profile.max_tokens,
+    )
 
 
 def build_human_content(prompt: str, images: Optional[list[str]] = None) -> Any:

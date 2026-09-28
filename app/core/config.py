@@ -29,6 +29,21 @@ class Settings(BaseSettings):
     LOCAL_LLM_MODEL: str = "gemma4:e4b"
     LOCAL_LLM_MAX_CTX: int = 32768
 
+    # --- Automatic model routing (Jev / TypeSafe) ---
+    MODEL_ROUTING_ENABLED: bool = True
+    MODEL_ROUTING_MODE: Literal["disabled", "shadow", "active"] = "shadow"
+    TYPESAFE_API_KEY: str = ""
+    MODEL_ROUTE_DEFAULT: Literal["fast", "standard", "powerful"] = "standard"
+    MODEL_ROUTE_FAST_PROVIDER: str = ""
+    MODEL_ROUTE_FAST_MODEL: str = ""
+    MODEL_ROUTE_STANDARD_PROVIDER: str = ""
+    MODEL_ROUTE_STANDARD_MODEL: str = ""
+    MODEL_ROUTE_POWERFUL_PROVIDER: str = ""
+    MODEL_ROUTE_POWERFUL_MODEL: str = ""
+    JEV_MIN_CONFIDENCE: float = Field(default=0.70, ge=0.0, le=1.0)
+    JEV_HIGH_STAKES_THRESHOLD: float = Field(default=0.75, ge=0.0, le=1.0)
+    JEV_ROUTING_TIMEOUT_MS: int = Field(default=1000, ge=100, le=30000)
+
     # --- Local Model Servers (Security: Restricted to localhost by default) ---
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     VLLM_BASE_URL: str = "http://localhost:8000"
@@ -148,6 +163,15 @@ class Settings(BaseSettings):
             raise ValueError(
                 "LLM_PROVIDER must be one of: google_gemma, azure_openai, ollama, vllm."
             )
+
+        valid_providers = {"google_gemma", "azure_openai", "ollama", "vllm"}
+        profile_providers = {
+            self.MODEL_ROUTE_FAST_PROVIDER,
+            self.MODEL_ROUTE_STANDARD_PROVIDER,
+            self.MODEL_ROUTE_POWERFUL_PROVIDER,
+        } - {""}
+        if not profile_providers <= valid_providers:
+            raise ValueError("Model route providers must be supported LLM providers.")
 
         if self.EMBEDDING_PROVIDER not in {"gemini", "openai"}:
             raise ValueError("EMBEDDING_PROVIDER must be one of: gemini, openai.")
